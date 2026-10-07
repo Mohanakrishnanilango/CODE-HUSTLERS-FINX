@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tactical HUD — GhostNet SSS Sentinel</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: { 950: '#020b18', 900: '#041e42', 800: '#0a326c', 700: '#11448b', 600: '#1b5bb5' },
+            ocean: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0284c7', 600: '#0369a1', accent: '#00C4CC' },
+            cyan: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 900: '#164e63' }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            heading: ['"Montserrat"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #1e293b #0b1120; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b1120; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    .glow-cyan { box-shadow: 0 0 20px rgba(6,182,212,0.25), inset 0 1px 0 rgba(6,182,212,0.1); }
+    .glow-red { box-shadow: 0 0 15px rgba(244,63,94,0.3); }
+    .glow-green { box-shadow: 0 0 15px rgba(34,197,94,0.3); }
+    .glow-amber { box-shadow: 0 0 15px rgba(245,158,11,0.3); }
+    .card { background: rgba(15,23,42,0.85); border: 1px solid rgba(30,41,59,0.8); backdrop-filter: blur(12px); }
+    .hud-line { background: linear-gradient(90deg, transparent, rgba(6,182,212,0.15), transparent); height: 1px; }
+    body { background: #060a14; transition: background-color 0.3s ease, color 0.3s ease; }
+    .tab-active { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #020617; }
+    @keyframes scanLine { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+    .scan-line { animation: scanLine 8s linear infinite; opacity: 0.03; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .btn-primary { background: linear-gradient(135deg, #0284c7, #06b6d4); transition: all 0.2s; }
+    .btn-primary:hover { filter: brightness(1.15); box-shadow: 0 4px 20px rgba(6,182,212,0.4); }
+    #map { z-index: 1; }
+    .leaflet-container {
+      background: #08101E !important;
+      font-family: inherit;
+    }
+    html.dark .leaflet-tile {
+      filter: invert(100%) hue-rotate(185deg) brightness(85%) contrast(120%) saturate(75%);
+    }
+    html.light .leaflet-tile {
+      filter: none;
+    }
+    html.light .leaflet-container {
+      background: #f8fafc !important;
+    }
+    html.dark .leaflet-popup-content-wrapper {
+      background: #0B132B !important;
+      color: #F1F5F9 !important;
+      border: 1px solid #1C2541 !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 240, 255, 0.25) !important;
+      border-radius: 0.5rem !important;
+    }
+    html.dark .leaflet-popup-tip {
+      background: #0B132B !important;
+      border: 1px solid #1C2541 !important;
+    }
+    html.dark .leaflet-popup-close-button {
+      color: #94A3B8 !important;
+    }
+    html.light .leaflet-popup-content-wrapper {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+      border-radius: 0.5rem !important;
+    }
+    html.light .leaflet-popup-tip {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    .custom-sonar-marker {
+      background: transparent !important;
+      border: none !important;
+    }
+    @keyframes sonar-ping {
+      0% { transform: scale(1); opacity: 0.8; }
+      75%, 100% { transform: scale(2.2); opacity: 0; }
+    }
+    .sonar-ping-active {
+      animation: sonar-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    /* Light Theme Styling for Dashboard */
+
+    html.light body {
+      background: radial-gradient(circle at 50% 0%, #e0f2fe 0%, #f1f7fa 40%, #f8fafc 100%);
+      color: #1e293b;
+    }
+    html.light .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      backdrop-filter: none;
+      box-shadow: 0 4px 20px -2px rgba(4, 30, 66, 0.06);
+      color: #1e293b;
+    }
+    html.light header {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 2px 10px rgba(4, 30, 66, 0.04);
+    }
+    html.light .bg-navy-900\/95 { background: rgba(255, 255, 255, 0.95) !important; }
+    html.light .bg-slate-950\/60,
+    html.light .bg-slate-950\/40,
+    html.light .bg-slate-900 {
+      background: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #1e293b !important;
+    }
+    html.light .bg-slate-800\/60,
+    html.light .bg-slate-800\/80 {
+      background: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+      color: #334155 !important;
+    }
+    html.light input,
+    html.light select {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    html.light .border-slate-800,
+    html.light .border-slate-800\/60,
+    html.light .border-slate-700 {
+      border-color: #e2e8f0 !important;
+    }
+    html.light .text-slate-100,
+    html.light .text-slate-200 {
+      color: #041e42 !important;
+    }
+    html.light .text-slate-300 {
+      color: #1e293b !important;
+    }
+    html.light .text-slate-400 {
+      color: #475569 !important;
+    }
+    html.light .text-slate-500 {
+      color: #64748b !important;
+    }
+    html.light .leaflet-container {
+      background: #f8fafc !important;
+    }
+    html.light .scan-line {
+      display: none;
+    }
+    html.light * {
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+  <!-- Ambient scan line effect -->
+  <div class="fixed inset-0 pointer-events-none z-50">
+    <div class="scan-line w-full h-32 bg-gradient-to-b from-transparent via-cyan-400 to-transparent absolute top-0"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-navy-900/95 backdrop-blur-xl border-b border-slate-800/60 sticky top-0 z-40 px-6 py-3">
+    <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <div class="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
+          <i data-lucide="radar" class="w-5 h-5 text-cyan-400"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-wider text-cyan-400 flex items-center gap-2">
+            GHOSTNET <span class="text-slate-500 font-light">SSS SENTINEL</span>
+          </h1>
+          <p class="text-[10px] text-slate-500 tracking-wide">SINGLE IMAGE MODE</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 bg-slate-800/60 dark:bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/60">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" id="status-dot"></span>
+          <span class="text-[10px] text-slate-400 font-mono" id="detector-badge">CONNECTING</span>
+        </div>
+        <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme"
+                class="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-cyan-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-1.5 shadow-sm">
+          <i id="theme-icon-sun" data-lucide="sun" class="w-3.5 h-3.5 hidden dark:inline"></i>
+          <i id="theme-icon-moon" data-lucide="moon" class="w-3.5 h-3.5 inline dark:hidden text-navy-900"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider hidden sm:inline" id="theme-text">Light</span>
+        </button>
+        <a href="/batch" class="text-[10px] text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 font-semibold">Batch Mode</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 lg:p-6">
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div class="card rounded-xl p-3 glow-cyan">
+        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Detections</div>
+        <div class="text-xl font-bold font-mono text-cyan-400" id="stat-total">0</div>
+      </div>
+      <div class="card rounded-xl p-3">
+        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">High Priority</div>
+        <div class="text-xl font-bold font-mono text-rose-400" id="stat-high">0</div>
+      </div>
+      <div class="card rounded-xl p-3">
+        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Medium</div>
+        <div class="text-xl font-bold font-mono text-amber-400" id="stat-medium">0</div>
+      </div>
+      <div class="card rounded-xl p-3">
+        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Low</div>
+        <div class="text-xl font-bold font-mono text-emerald-400" id="stat-low">0</div>
+      </div>
+      <div class="card rounded-xl p-3">
+        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Images Analyzed</div>
+        <div class="text-xl font-bold font-mono text-purple-400" id="stat-images">0</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+
+      <!-- Left Sidebar -->
+      <aside class="lg:col-span-3 flex flex-col gap-4">
+
+        <!-- Upload Card -->
+        <div class="card rounded-xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xs text-slate-200 flex items-center gap-2">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-cyan-400"></i>
+              SSS Image & JSON Input
+            </h2>
+            <div class="flex items-center gap-1.5">
+              <button id="btn-survey-track" onclick="loadArabianSeaSurvey()" title="Load authentic 5-ping Arabian Sea survey track from refer MVP" class="text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 px-2 py-1 rounded border border-cyan-800/50 transition flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-2.5 h-2.5"></i> Survey Track
+              </button>
+              <button id="btn-sample-pair" title="Load sample image and matching telemetry JSON pair" class="text-[10px] text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 px-2 py-1 rounded border border-emerald-800/50 transition flex items-center gap-1 font-semibold">
+                <i data-lucide="link" class="w-2.5 h-2.5"></i> Image + JSON
+              </button>
+              <button id="btn-sample" class="text-[10px] text-slate-300 hover:text-cyan-300 bg-slate-900/60 px-2 py-1 rounded border border-slate-800/50 transition flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Synth
+              </button>
+            </div>
+          </div>
+
+          <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-cyan-500/40 rounded-lg p-4 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition bg-slate-950/40 group">
+            <input type="file" id="file-input" accept="image/*,.tif,.tiff,.json,application/json" class="hidden" multiple>
+            <input type="file" id="json-input" accept=".json,application/json" class="hidden">
+            <div class="flex items-center gap-2">
+              <div class="p-2 bg-slate-800/80 group-hover:bg-cyan-500/10 rounded-full text-slate-400 group-hover:text-cyan-400 transition">
+                <i data-lucide="image" class="w-5 h-5"></i>
+              </div>
+              <span class="text-slate-600 text-xs">+</span>
+              <div class="p-2 bg-slate-800/80 group-hover:bg-cyan-500/10 rounded-full text-slate-400 group-hover:text-cyan-400 transition">
+                <i data-lucide="file-code" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <span class="font-semibold text-cyan-400">Click or drop</span> Image & Telemetry JSON
+            </div>
+            <p class="text-[9px] text-slate-500">Pair by matching filename or timestamp &bull; Coordinates auto-project</p>
+            <div class="flex items-center gap-2 mt-1">
+              <button type="button" id="btn-select-json" class="text-[9px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition flex items-center gap-1">
+                <i data-lucide="plus" class="w-2.5 h-2.5"></i> Add JSON File
+              </button>
+            </div>
+            <div id="file-preview" class="hidden text-[10px] text-cyan-300 font-mono mt-1 break-all bg-cyan-950/40 px-2 py-1 rounded border border-cyan-800/50 w-full text-left flex flex-col gap-0.5"></div>
+            <div id="json-preview" class="hidden text-[10px] text-emerald-300 font-mono mt-1 break-all bg-emerald-950/40 px-2 py-1 rounded border border-emerald-800/50 w-full text-left flex flex-col gap-0.5"></div>
+            <div id="match-badge" class="hidden text-[10px] font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-600/50 rounded px-2 py-0.5 w-full flex items-center justify-between"></div>
+          </div>
+
+          <!-- Telemetry GPS Coordinates Display (Extracted from JSON) -->
+          <div class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/80 text-[11px] flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-400"></i>
+                Telemetry GPS
+              </span>
+              <span id="gps-status-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 font-mono">
+                Awaiting JSON
+              </span>
+            </div>
+            <div id="gps-display-coords" class="font-mono text-[10px] text-slate-400 flex items-center gap-1.5 break-all">
+              <i data-lucide="info" class="w-3 h-3 text-slate-500 shrink-0"></i>
+              <span>Drop or pair a JSON file with latitude & longitude</span>
+            </div>
+          </div>
+
+          <!-- Metadata Toggle -->
+          <div class="border-t border-slate-800/60 pt-2">
+            <button id="meta-toggle" class="flex items-center justify-between w-full text-[11px] text-slate-300 font-medium">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="sliders" class="w-3 h-3 text-cyan-400"></i>
+                Acoustic Parameters (Optional)
+              </span>
+              <i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 transition-transform" id="meta-chevron"></i>
+            </button>
+          </div>
+
+          <div id="meta-fields" class="hidden grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <label class="block text-slate-500 mb-0.5">Heading (deg)</label>
+              <input type="number" step="any" id="meta-heading" placeholder="Auto from JSON" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]">
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-0.5">Resolution (m/px)</label>
+              <input type="number" step="any" id="meta-res" value="0.10" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]">
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-0.5">Nadir Column</label>
+              <input type="number" id="meta-nadir" placeholder="Center" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]">
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-0.5">Swath Channel</label>
+              <select id="meta-channel" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]">
+                <option value="both">Both</option>
+                <option value="starboard">Starboard</option>
+                <option value="port">Port</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-1">
+            <label class="block text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-1">Analysis Mode</label>
+            <select id="detector-select" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2.5 py-1.5 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px] font-semibold">
+              <option value="unet" selected>High-Resolution Pixel Segmentation</option>
+              <option value="dual_yolo">Dual-Stage Consensus Voting</option>
+              <option value="hybrid">Hybrid Consensus Ensemble</option>
+              <option value="mock">Simulation Mode (Dev / Test)</option>
+            </select>
+          </div>
+
+          <button id="btn-analyze" class="btn-primary w-full text-white font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/30 text-xs">
+            <i data-lucide="scan-search" class="w-4 h-4"></i>
+            <span>Run Analysis</span>
+          </button>
+        </div>
+
+        <!-- Detection History -->
+        <div class="card rounded-xl p-4 flex flex-col gap-3 flex-1 min-h-0">
+          <div class="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="database" class="w-3 h-3 text-cyan-400"></i>
+              Detection Log
+            </span>
+            <button id="btn-refresh" class="text-slate-500 hover:text-slate-300 transition">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+            </button>
+          </div>
+          <div id="history-list" class="flex flex-col gap-1.5 flex-1 overflow-y-auto text-[11px]">
+            <div class="text-slate-500 text-center py-6 text-[10px]">No detections yet.</div>
+          </div>
+          <div id="detection-log" class="flex flex-col gap-0.5 flex-1 overflow-y-auto text-[11px] hidden"></div>
+        </div>
+
+      </aside>
+
+      <!-- Center: Main Results -->
+      <section class="lg:col-span-6 flex flex-col gap-4">
+
+        <!-- Empty State -->
+        <div id="empty-state" class="card rounded-xl p-16 flex flex-col items-center justify-center text-center gap-4 min-h-[500px]">
+          <div class="p-5 bg-cyan-500/5 rounded-full border border-cyan-500/10 text-cyan-400/40">
+            <i data-lucide="waves" class="w-16 h-16"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-300">No Analysis Running</h3>
+            <p class="text-[11px] text-slate-500 max-w-xs mt-1">Upload a side-scan sonar image to trigger multi-modal acoustic evidence extraction.</p>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-state" class="hidden card rounded-xl p-16 flex flex-col items-center justify-center text-center gap-4 min-h-[500px]">
+          <div class="relative w-16 h-16">
+            <div class="absolute inset-0 border-4 border-cyan-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            <div class="absolute inset-2 border-4 border-blue-500/20 border-b-blue-400 rounded-full animate-spin" style="animation-direction:reverse;animation-duration:1.5s"></div>
+          </div>
+          <div class="space-y-1.5">
+            <h3 class="text-sm font-semibold text-cyan-400">Processing Acoustic Pipeline</h3>
+            <p class="text-[10px] text-slate-500 max-w-sm">Shape Analysis &rarr; Masked GLCM &rarr; Sonar Shadow CCA &rarr; Size/Extent &rarr; Context &rarr; Fusion &rarr; Geolocation</p>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <span class="px-2 py-0.5 bg-cyan-950/60 text-cyan-400 text-[9px] font-mono rounded border border-cyan-900/50 animate-pulse">SHAPE</span>
+            <span class="px-2 py-0.5 bg-cyan-950/60 text-cyan-400 text-[9px] font-mono rounded border border-cyan-900/50 animate-pulse" style="animation-delay:0.2s">GLCM</span>
+            <span class="px-2 py-0.5 bg-cyan-950/60 text-cyan-400 text-[9px] font-mono rounded border border-cyan-900/50 animate-pulse" style="animation-delay:0.4s">SHADOW</span>
+            <span class="px-2 py-0.5 bg-cyan-950/60 text-cyan-400 text-[9px] font-mono rounded border border-cyan-900/50 animate-pulse" style="animation-delay:0.6s">FUSION</span>
+          </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div id="results-panel" class="hidden flex-col gap-4 fade-in">
+          <div id="no-detections-msg" class="hidden card rounded-xl p-12 flex flex-col items-center justify-center text-center gap-3">
+            <i data-lucide="shield-check" class="w-12 h-12 text-emerald-400"></i>
+            <h3 class="text-sm font-semibold text-emerald-400">Clean Seafloor &mdash; No Anomaly Detected</h3>
+            <p class="text-[11px] text-slate-400 max-w-md">No candidate regions exceeded the 50% confidence threshold. All candidate regions scored &le; 50% confidence and were skipped as natural seabed texture or benign acoustic noise.</p>
+          </div>
+
+          <!-- Score Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="card rounded-xl p-3">
+              <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Confidence</div>
+              <div class="text-2xl font-bold font-mono text-cyan-400" id="r-confidence">0%</div>
+              <div class="h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                <div id="r-confidence-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="card rounded-xl p-3">
+              <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Classification</div>
+              <span id="r-priority" class="inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-slate-800 text-slate-300">CLEAN SEABED</span>
+            </div>
+            <div class="card rounded-xl p-3">
+              <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Anomaly Score</div>
+              <div class="text-xl font-bold font-mono text-purple-400" id="r-anomaly">0%</div>
+            </div>
+            <div class="card rounded-xl p-3">
+              <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Shadow</div>
+              <div class="flex items-center gap-1" id="r-shadow">
+                <i data-lucide="minus-circle" class="w-3 h-3 text-slate-500"></i>
+                <span class="text-[11px] text-slate-400">N/A</span>
+              </div>
+            </div>
+            <div class="card rounded-xl p-3">
+              <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">BBox (X,Y,W,H)</div>
+              <div class="text-xs font-bold font-mono text-yellow-400 mt-1" id="r-bbox">N/A</div>
+            </div>
+          </div>
+
+          <!-- Target Tabs -->
+          <div id="target-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1"></div>
+
+          <!-- Debug Image HUD -->
+          <div class="card rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="eye" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <h3 class="text-[11px] font-semibold text-slate-200 uppercase tracking-wider">Diagnostic Overlay HUD</h3>
+              </div>
+              <div class="flex items-center gap-2 text-[9px]">
+                <span class="flex items-center gap-1 text-yellow-400"><span class="w-2 h-2 rounded-sm bg-yellow-400"></span>BBox</span>
+                <span class="flex items-center gap-1 text-cyan-400"><span class="w-2 h-2 rounded-sm bg-cyan-400"></span>Anomaly</span>
+                <span class="flex items-center gap-1 text-rose-400"><span class="w-2 h-2 rounded-sm bg-rose-500"></span>Shadow</span>
+                <span class="flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-sm bg-emerald-500"></span>Context</span>
+              </div>
+            </div>
+            <div class="bg-black rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center min-h-[300px] relative">
+              <img id="debug-img" src="" alt="Debug HUD" class="max-h-[500px] w-auto object-contain">
+              <div id="debug-img-placeholder" class="text-slate-600 text-[10px]">No debug image available</div>
+            </div>
+          </div>
+
+          <!-- Evidence + Chart -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Evidence Bars -->
+            <div class="card rounded-xl p-4">
+              <h3 class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <i data-lucide="bar-chart-3" class="w-3 h-3 text-cyan-400"></i>
+                Evidence Breakdown
+              </h3>
+              <div id="evidence-bars" class="flex flex-col gap-2.5"></div>
+            </div>
+            <!-- Radar -->
+            <div class="card rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="activity" class="w-3 h-3 text-cyan-400"></i>
+                  Evidence Radar
+                </h3>
+                <button id="btn-report" class="text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-900/50 transition flex items-center gap-1">
+                  <i data-lucide="download" class="w-2.5 h-2.5"></i> Report
+                </button>
+              </div>
+              <div class="relative flex items-center justify-center h-52">
+                <canvas id="radarChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Georeferenced Detection Map (SonarMap from refer/src/components/SonarMap.tsx) -->
+          <div id="section-map" class="card rounded-xl p-4 sm:p-5 shadow-lg space-y-3.5">
+            <!-- Map Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/80">
+              <div>
+                <h3 class="text-xs sm:text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                  Georeferenced Detection Map
+                </h3>
+                <p class="text-[10px] sm:text-[11px] text-slate-400">
+                  OpenStreetMap Tiles | Georeference: <span class="font-mono text-cyan-400 font-semibold">Direct Towfish Navigation</span>
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2.5 text-xs">
+                <div class="flex items-center gap-1.5 font-mono text-slate-300">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                  <span id="map-target-count" class="font-semibold text-cyan-300">0 Target Markers</span>
+                </div>
+                <div class="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700 font-mono">
+                  Direct GPS (WGS 84)
+                </div>
+              </div>
+            </div>
+
+            <!-- Map Legend -->
+            <div class="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-[10px] font-mono">
+              <span class="text-slate-400 font-semibold flex items-center gap-1 mr-1">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i> Map Layers:
+              </span>
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300">
+                <span class="w-3 h-0.5 border-t-2 border-dashed border-cyan-400"></span>
+                <span>Survey Flight Path</span>
+              </div>
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950/30 border border-cyan-500/20 text-cyan-400/80">
+                <span class="w-2.5 h-2 bg-cyan-400/20 border border-cyan-400/50"></span>
+                <span>Swath Corridor</span>
+              </div>
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-950/50 border border-amber-500/30 text-amber-300">
+                <span class="w-3 h-0.5 border-t-2 border-dashed border-amber-400"></span>
+                <span>Target Offset</span>
+              </div>
+              <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+                <span class="w-2 h-2 rounded-full" style="background-color: #FFB800"></span>
+                <span class="text-amber-300 text-[10px]">Ghost Net</span>
+              </div>
+              <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30">
+                <span class="w-2 h-2 rounded-full" style="background-color: #00F0FF"></span>
+                <span class="text-cyan-300 text-[10px]">Pipeline</span>
+              </div>
+              <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/30">
+                <span class="w-2 h-2 rounded-full" style="background-color: #FF3366"></span>
+                <span class="text-rose-300 text-[10px]">Shipwreck</span>
+              </div>
+              <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+                <span class="w-2 h-2 rounded-full" style="background-color: #00FF66"></span>
+                <span class="text-emerald-300 text-[10px]">Fishing Gear</span>
+              </div>
+            </div>
+
+            <!-- Leaflet Map Canvas -->
+            <div class="h-[400px] w-full rounded-lg overflow-hidden border border-slate-700/80 relative shadow-inner">
+              <div id="map" class="h-full w-full"></div>
+              <!-- Empty/Waiting State Overlay on Map -->
+              <div id="map-empty-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-[500] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300">
+                <div class="p-3 bg-cyan-500/10 rounded-full border border-cyan-500/20 mb-3 text-cyan-400">
+                  <i data-lucide="compass" class="w-8 h-8"></i>
+                </div>
+                <h4 class="text-sm font-semibold text-slate-200 mb-1">Awaiting Georeferenced Survey Imagery</h4>
+                <p class="text-xs text-slate-400 max-w-md mb-4 leading-relaxed">
+                  Upload or pair a telemetry JSON file containing WGS84 coordinates, or load the authentic Arabian Sea survey track to view live georeferenced anomaly markers, towfish flight lines, and synchronized telemetry.
+                </p>
+                <button onclick="loadArabianSeaSurvey()" class="px-3.5 py-2 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition flex items-center gap-2 shadow-lg glow-cyan">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                  Load Arabian Sea Survey Track (Kochi Shelf)
+                </button>
+              </div>
+            </div>
+
+            <!-- Map Footer Telemetry / Sync Note -->
+            <div class="text-[10px] sm:text-[11px] font-mono text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+              <span class="flex items-center gap-1.5 text-slate-300">
+                <i data-lucide="navigation-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                Click any marker on the map to synchronize Sonar Imagery, Bounding Box, and Telemetry details.
+              </span>
+              <span class="text-slate-400 text-right">
+                Datum: <strong class="text-cyan-400 font-semibold">WGS 84</strong> (Dead-Reckoning)
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Right Sidebar: Map / Info -->
+      <aside class="lg:col-span-3 flex flex-col gap-4">
+
+        <!-- System Info -->
+        <div class="card rounded-xl p-4">
+          <h3 class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <i data-lucide="info" class="w-3 h-3 text-cyan-400"></i>
+            Pipeline Info
+          </h3>
+          <div class="space-y-2 text-[10px]">
+            <div class="flex justify-between"><span class="text-slate-500">Backend</span><span class="font-mono text-slate-300" id="info-backend">-</span></div>
+            <div class="hud-line"></div>
+            <div class="flex justify-between"><span class="text-slate-500">Pipeline Mode</span><span class="font-mono text-slate-300" id="info-detector">-</span></div>
+            <div class="hud-line"></div>
+            <div class="flex justify-between"><span class="text-slate-500">Last Image</span><span class="font-mono text-slate-300 truncate max-w-[120px]" id="info-image">-</span></div>
+            <div class="hud-line"></div>
+            <div class="flex justify-between"><span class="text-slate-500">Image Size</span><span class="font-mono text-slate-300" id="info-dims">-</span></div>
+            <div class="hud-line"></div>
+            <div class="flex justify-between"><span class="text-slate-500">Detections</span><span class="font-mono text-slate-300" id="info-count">-</span></div>
+            <div class="hud-line"></div>
+            <div class="flex justify-between"><span class="text-slate-500">Timestamp</span><span class="font-mono text-slate-300" id="info-time">-</span></div>
+          </div>
+        </div>
+
+        <!-- Active Evidence Weights -->
+        <div class="card rounded-xl p-4">
+          <h3 class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <i data-lucide="sliders-horizontal" class="w-3 h-3 text-cyan-400"></i>
+            Fusion Weights
+          </h3>
+          <div id="weights-display" class="space-y-2 text-[10px]">
+            <div class="flex justify-between"><span class="text-slate-500">Anomaly</span><span class="font-mono text-cyan-400">0.30</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Shape</span><span class="font-mono text-blue-400">0.20</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Texture</span><span class="font-mono text-purple-400">0.20</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Shadow</span><span class="font-mono text-rose-400">0.15</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Size</span><span class="font-mono text-amber-400">0.05</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Context</span><span class="font-mono text-emerald-400">0.10</span></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card rounded-xl p-4">
+          <h3 class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <i data-lucide="zap" class="w-3 h-3 text-cyan-400"></i>
+            Quick Actions
+          </h3>
+          <div class="flex flex-col gap-2">
+            <button id="btn-high-priority" class="w-full text-left text-[10px] px-3 py-2 bg-rose-950/30 hover:bg-rose-950/50 border border-rose-900/30 rounded-lg text-rose-300 transition flex items-center gap-2">
+              <i data-lucide="alert-triangle" class="w-3 h-3"></i> Show High Priority Only
+            </button>
+            <button id="btn-all-detections" class="w-full text-left text-[10px] px-3 py-2 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/40 rounded-lg text-slate-300 transition flex items-center gap-2">
+              <i data-lucide="list" class="w-3 h-3"></i> Show All Detections
+            </button>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/40 py-3 text-center text-[9px] text-slate-600 font-mono tracking-wide">
+    SIH 2026 &mdash; GHOST NET DETECTION USING SIDE-SCAN SONAR IMAGERY &mdash; PROTOTYPE v1.0
+  </footer>
+
+  <script>
+    // --- State ---
+    let analysisData = null;
+    let selectedIdx = 0;
+    let radarChart = null;
+    let selectedFile = null;
+    let selectedJsonFile = null;
+    let cachedJsonData = null;
+    let lockedTelemetry = null;
+    let map = null;
+    let mapMarkers = [];
+    let mapTrackline = null;
+    let mapLayers = [];
+    let mapTileLayer = null;
+    let sessionSurveyRoute = [];
+
+    // --- Init ---
+    lucide.createIcons();
+    initMap();
+    checkServer();
+    loadHistory();
+
+
+    function formatPipelineMode(val) {
+      if (!val || val === '-') return '-';
+      const lower = String(val).toLowerCase();
+      if (lower.includes('unet')) return 'Pixel Segmentation';
+      if (lower.includes('yolo')) return 'Consensus Voting';
+      if (lower.includes('hybrid')) return 'Hybrid Ensemble';
+      if (lower.includes('mock')) return 'Simulation Mode';
+      return String(val)
+        .replace(/resnet[-\s]?\d*/gi, '')
+        .replace(/yolo(v\d+)?([a-z])?/gi, '')
+        .replace(/unet/gi, '')
+        .replace(/engine/gi, 'Pipeline')
+        .replace(/model\s*[a-z]?/gi, '')
+        .replace(/detector/gi, 'Pipeline')
+        .replace(/\(\s*\)/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim() || 'Acoustic Pipeline';
+    }
+
+    // --- Server Check ---
+    async function checkServer() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        document.getElementById('detector-badge').textContent = 'ONLINE';
+        document.getElementById('status-dot').className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+        document.getElementById('info-backend').textContent = 'Online';
+        document.getElementById('info-detector').textContent = formatPipelineMode(d.detector_backend);
+      } catch {
+        document.getElementById('detector-badge').textContent = 'OFFLINE';
+        document.getElementById('status-dot').className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+        document.getElementById('info-backend').textContent = 'Offline';
+      }
+    }
+
+    // --- File & Telemetry Handling ---
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const jsonInput = document.getElementById('json-input');
+    const preview = document.getElementById('file-preview');
+    const jsonPreview = document.getElementById('json-preview');
+    const matchBadge = document.getElementById('match-badge');
+
+    dropZone.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-select-json')) return;
+      fileInput.click();
+    });
+    document.getElementById('btn-select-json')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      jsonInput.click();
+    });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-cyan-400/60'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-cyan-400/60'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('border-cyan-400/60');
+      if (e.dataTransfer.files.length) {
+        handleDroppedOrSelectedFiles(Array.from(e.dataTransfer.files));
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) handleDroppedOrSelectedFiles(Array.from(fileInput.files));
+    });
+    jsonInput.addEventListener('change', () => {
+      if (jsonInput.files.length) handleDroppedOrSelectedFiles(Array.from(jsonInput.files));
+    });
+
+    function cleanStemName(fname) {
+      return fname.replace(/\.[^/.]+$/, '').replace(/[-_](meta|telemetry|nav|metadata|gps)$/i, '').toLowerCase();
+    }
+
+    function extractTimestampFromStr(s) {
+      if (!s) return null;
+      // ISO pattern
+      const mIso = s.match(/(\d{4}-\d{2}-\d{2}[T_\s]\d{2}[-_:]?\d{2}[-_:]?\d{2})/i);
+      if (mIso) return mIso[1].replace(/[-_:]/g, '').replace(/[T\s]/g, '');
+      // Compact pattern: YYYYMMDD_HHMMSS
+      const mComp = s.match(/(\d{4}\d{2}\d{2}[-_]\d{2}\d{2}\d{2})/);
+      if (mComp) return mComp[1].replace(/[-_]/g, '');
+      return null;
+    }
+
+    function findValueInObjRecursive(obj, keys, maxDepth = 4) {
+      if (!obj || typeof obj !== 'object' || maxDepth <= 0) return null;
+      for (const k of keys) {
+        if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
+          return obj[k];
+        }
+      }
+      const priorityContainers = ['navigation', 'nav', 'sonar', 'telemetry', 'gps', 'location', 'position', 'geometry', 'properties', 'vehicle', 'auv', 'state', 'survey'];
+      for (const cont of priorityContainers) {
+        if (obj[cont] && typeof obj[cont] === 'object') {
+          const found = findValueInObjRecursive(obj[cont], keys, maxDepth - 1);
+          if (found !== null && found !== undefined) return found;
+        }
+      }
+      for (const [k, v] of Object.entries(obj)) {
+        if (!priorityContainers.includes(k) && v && typeof v === 'object') {
+          const found = findValueInObjRecursive(v, keys, maxDepth - 1);
+          if (found !== null && found !== undefined) return found;
+        }
+      }
+      return null;
+    }
+
+    function extractCoordinatesFromTelemetryJson(data) {
+      if (!data) return { lat: null, lon: null };
+      const target = Array.isArray(data) ? data[0] : (data.pings ? data.pings[0] : (data.features ? (data.features[0].properties || data.features[0]) : data));
+      if (!target || typeof target !== 'object') return { lat: null, lon: null };
+
+      const latKeys = ['latitude', 'lat', 'survey_latitude', 'survey_lat', 'lat_deg', 'lat_dd', 'y'];
+      const lonKeys = ['longitude', 'lon', 'lng', 'survey_longitude', 'survey_lon', 'lon_deg', 'lon_dd', 'x'];
+
+      let rawLat = findValueInObjRecursive(target, latKeys);
+      let rawLon = findValueInObjRecursive(target, lonKeys);
+
+      let lat = rawLat != null ? parseFloat(rawLat) : null;
+      let lon = rawLon != null ? parseFloat(rawLon) : null;
+
+      if (isNaN(lat)) lat = null;
+      if (isNaN(lon)) lon = null;
+
+      // Fallback to array coordinates (e.g. coordinates: [lon, lat] or [lat, lon])
+      if (lat == null || lon == null) {
+        const coords = findValueInObjRecursive(target, ['coordinates', 'location', 'position', 'coords']);
+        if (Array.isArray(coords) && coords.length >= 2) {
+          const v0 = parseFloat(coords[0]);
+          const v1 = parseFloat(coords[1]);
+          if (!isNaN(v0) && !isNaN(v1)) {
+            if (Math.abs(v0) > 90 && Math.abs(v1) <= 90) {
+              lon = v0; lat = v1;
+            } else if (Math.abs(v1) > 90 && Math.abs(v0) <= 90) {
+              lat = v0; lon = v1;
+            } else {
+              if (target.type === 'Point' || (target.geometry && target.geometry.type === 'Point')) {
+                lon = v0; lat = v1;
+              } else {
+                lat = v0; lon = v1;
+              }
+            }
+          }
+        }
+      }
+
+      return { lat, lon };
+    }
+
+    async function handleDroppedOrSelectedFiles(files) {
+      for (const f of files) {
+        const isJson = f.name.toLowerCase().endsWith('.json') || (f.type && f.type.includes('json'));
+        if (isJson) {
+          selectedJsonFile = f;
+          jsonPreview.innerHTML = `<span class="flex items-center gap-1"><i data-lucide="file-code" class="w-3 h-3 text-emerald-400"></i> JSON: <strong>${f.name}</strong> (${(f.size/1024).toFixed(1)} KB)</span>`;
+          jsonPreview.classList.remove('hidden');
+          // Parse JSON and extract coordinates
+          try {
+            const text = await f.text();
+            const data = JSON.parse(text);
+            cachedJsonData = data;
+            const coords = extractCoordinatesFromTelemetryJson(data);
+            const target = Array.isArray(data) ? data[0] : (data.pings ? data.pings[0] : data);
+
+            const badge = document.getElementById('gps-status-badge');
+            const coordsEl = document.getElementById('gps-display-coords');
+
+            if (coords.lat != null && coords.lon != null) {
+              const headingVal = target ? findValueInObjRecursive(target, ['heading_deg', 'heading', 'course', 'bearing', 'yaw']) : null;
+              const altVal = target ? findValueInObjRecursive(target, ['altitude_m', 'altitude', 'depth_m', 'depth']) : null;
+              lockedTelemetry = {
+                lat: coords.lat,
+                lon: coords.lon,
+                heading: headingVal != null ? parseFloat(headingVal) : 0,
+                altitude: altVal != null ? parseFloat(altVal) : null,
+                filename: f.name
+              };
+              if (badge) {
+                badge.textContent = 'GPS Locked (JSON)';
+                badge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-600/60 text-emerald-300 font-mono font-bold';
+              }
+              if (coordsEl) {
+                coordsEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3"></i> ${coords.lat.toFixed(6)}°, ${coords.lon.toFixed(6)}°</span> <span class="text-slate-400 text-[9px] truncate">(${f.name})</span>`;
+              }
+              // Immediately unhide results panel & render the georeferenced map
+              document.getElementById('empty-state').classList.add('hidden');
+              document.getElementById('results-panel').classList.remove('hidden');
+              document.getElementById('results-panel').classList.add('flex');
+              updateSonarMap(true);
+            } else {
+              lockedTelemetry = null;
+              if (badge) {
+                badge.textContent = 'No GPS In JSON';
+                badge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-mono';
+              }
+              if (coordsEl) {
+                coordsEl.innerHTML = `<span class="text-amber-400 text-[10px]">JSON loaded without lat/lon coordinates</span>`;
+              }
+            }
+
+            if (target) {
+              const heading = findValueInObjRecursive(target, ['heading_deg', 'heading', 'course', 'bearing', 'yaw']);
+              let res = findValueInObjRecursive(target, ['resolution', 'resolution_m_per_pixel', 'm_per_pixel', 'res', 'spatial_resolution', 'pixel_size_m']);
+              const nadir = findValueInObjRecursive(target, ['nadir_column', 'nadir_col', 'nadir_x_px', 'nadir_x', 'nadir', 'nadir_pixel']);
+              const side = findValueInObjRecursive(target, ['swath_channel', 'channel', 'side']);
+              const sonarRange = findValueInObjRecursive(target, ['range_per_side_m', 'sonar_range', 'range', 'range_m', 'slant_range_m']);
+
+              if (res == null && sonarRange != null && nadir != null && parseFloat(nadir) > 0) {
+                res = (parseFloat(sonarRange) / parseFloat(nadir)).toFixed(4);
+              } else if (res == null && sonarRange != null) {
+                const imgW = findValueInObjRecursive(target, ['image_width_px', 'image_width', 'width_px', 'width']);
+                if (imgW != null && parseFloat(imgW) > 0) {
+                  res = (parseFloat(sonarRange) / (parseFloat(imgW) / 2.0)).toFixed(4);
+                }
+              }
+
+              const hEl = document.getElementById('meta-heading');
+              if (hEl && heading != null) hEl.value = heading;
+              const rEl = document.getElementById('meta-res');
+              if (rEl && res != null) rEl.value = res;
+              const nEl = document.getElementById('meta-nadir');
+              if (nEl && nadir != null) nEl.value = nadir;
+              const sEl = document.getElementById('meta-channel');
+              if (sEl && side != null) sEl.value = side;
+            }
+          } catch (err) {
+            console.warn('Failed to parse telemetry JSON in browser:', err);
+          }
+        } else {
+          selectedFile = f;
+          preview.innerHTML = `<span class="flex items-center gap-1"><i data-lucide="image" class="w-3 h-3 text-cyan-400"></i> Image: <strong>${f.name}</strong> (${(f.size/1024).toFixed(1)} KB)</span>`;
+          preview.classList.remove('hidden');
+        }
+      }
+
+      // Check match between image and json
+      if (selectedFile && selectedJsonFile) {
+        const imgStem = cleanStemName(selectedFile.name);
+        const jsonStem = cleanStemName(selectedJsonFile.name);
+        const imgTs = extractTimestampFromStr(selectedFile.name);
+        const jsonTs = extractTimestampFromStr(selectedJsonFile.name);
+
+        let matchType = null;
+        let jsonImageId = null;
+        try {
+          if (cachedJsonData) {
+            jsonImageId = findValueInObjRecursive(cachedJsonData, ['image_id', 'image', 'image_filename', 'filename', 'image_name']);
+          }
+        } catch (_) {}
+
+        if (jsonImageId && (cleanStemName(String(jsonImageId)) === imgStem || String(jsonImageId).toLowerCase() === selectedFile.name.toLowerCase())) {
+          matchType = 'Image ID Match';
+        } else if (imgStem === jsonStem) {
+          matchType = 'Filename Match';
+        } else if (imgTs && jsonTs && imgTs === jsonTs) {
+          matchType = 'Timestamp Match';
+        } else {
+          matchType = 'Paired Telemetry';
+        }
+
+        matchBadge.innerHTML = `
+          <span class="flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i> ${matchType}: ${selectedFile.name} &harr; ${selectedJsonFile.name}</span>
+          <span class="font-mono text-[9px] bg-emerald-900/60 text-emerald-300 px-1.5 py-0.5 rounded">GPS Ready</span>
+        `;
+        matchBadge.classList.remove('hidden');
+      } else {
+        matchBadge.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    function setFile(file) {
+      handleDroppedOrSelectedFiles([file]);
+    }
+
+    // --- Image + JSON Pair ---
+    document.getElementById('btn-sample-pair')?.addEventListener('click', async () => {
+      try {
+        const [imgRes, jsonRes] = await Promise.all([
+          fetch('/static/images/ping_0001.png'),
+          fetch('/static/fixtures/route_demo/ping_0001.json')
+        ]);
+        const imgBlob = await imgRes.blob();
+        const jsonBlob = await jsonRes.blob();
+        const imgFile = new File([imgBlob], 'ping_0001.png', { type: 'image/png' });
+        const jsonFile = new File([jsonBlob], 'ping_0001.json', { type: 'application/json' });
+        await handleDroppedOrSelectedFiles([imgFile, jsonFile]);
+      } catch (err) {
+        console.error('Failed to load sample pair:', err);
+        alert('Could not load sample pair: ' + err.message);
+      }
+    });
+
+    // --- Synthetic Sample ---
+    document.getElementById('btn-sample').addEventListener('click', () => {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(256, 256);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const n = 100 + Math.floor(Math.random() * 30);
+        img.data[i] = img.data[i+1] = img.data[i+2] = n;
+        img.data[i+3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(140, 90);
+      ctx.bezierCurveTo(170, 70, 190, 110, 175, 135);
+      ctx.bezierCurveTo(160, 160, 130, 150, 135, 120);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(180, 85, 45, 55);
+      c.toBlob(b => {
+        setFile(new File([b], 'synthetic_sss.png', { type: 'image/png' }));
+      }, 'image/png');
+    });
+
+    // --- Metadata Toggle ---
+    document.getElementById('meta-toggle').addEventListener('click', () => {
+      const f = document.getElementById('meta-fields');
+      const ch = document.getElementById('meta-chevron');
+      f.classList.toggle('hidden');
+      ch.style.transform = f.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    });
+
+    // --- Analyze ---
+    document.getElementById('btn-analyze').addEventListener('click', async () => {
+      if (!selectedFile) { alert('Select an SSS image first.'); return; }
+
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('results-panel').classList.add('hidden');
+      document.getElementById('loading-state').classList.remove('hidden');
+      document.getElementById('btn-analyze').disabled = true;
+
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      if (selectedJsonFile) {
+        fd.append('json_file', selectedJsonFile);
+      }
+      if (cachedJsonData) {
+        fd.append('json_data', JSON.stringify(cachedJsonData));
+      }
+      if (lockedTelemetry && lockedTelemetry.lat != null && lockedTelemetry.lon != null) {
+        fd.append('latitude', lockedTelemetry.lat);
+        fd.append('longitude', lockedTelemetry.lon);
+        if (lockedTelemetry.heading != null) fd.append('heading', lockedTelemetry.heading);
+      }
+      const optionalFields = { heading: 'meta-heading', resolution: 'meta-res', nadir_column: 'meta-nadir', swath_channel: 'meta-channel' };
+      for (const [k, id] of Object.entries(optionalFields)) {
+        const el = document.getElementById(id);
+        if (el && el.value) fd.append(k, el.value);
+      }
+      fd.append('enable_visual_debug', 'true');
+      const modeChoice = document.getElementById('detector-select').value;
+      if (modeChoice) fd.append('detector_backend', modeChoice);
+
+      try {
+        const r = await fetch('/api/detections/analyze', { method: 'POST', body: fd });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Failed'); }
+        analysisData = await r.json();
+        selectedIdx = 0;
+        renderResults();
+        loadHistory();
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+        document.getElementById('empty-state').classList.remove('hidden');
+      } finally {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('btn-analyze').disabled = false;
+      }
+    });
+
+    // --- Render Results ---
+    function renderResults(fitBounds = false) {
+      if (!analysisData) return;
+
+      // Always show results panel and update pipeline info
+      document.getElementById('results-panel').classList.remove('hidden');
+      document.getElementById('results-panel').classList.add('flex');
+      document.getElementById('info-image').textContent = analysisData.filename;
+      document.getElementById('info-dims').textContent = `${analysisData.image_dimensions[0]}x${analysisData.image_dimensions[1]}`;
+      document.getElementById('info-count').textContent = analysisData.total_detections;
+      document.getElementById('info-time').textContent = new Date(analysisData.timestamp).toLocaleTimeString();
+
+      // Update stat cards
+      document.getElementById('stat-total').textContent = analysisData.total_detections;
+      document.getElementById('stat-high').textContent = analysisData.detections.filter(d => d.priority === 'HIGH').length;
+      document.getElementById('stat-medium').textContent = analysisData.detections.filter(d => d.priority === 'MEDIUM').length;
+      document.getElementById('stat-low').textContent = analysisData.detections.filter(d => d.priority === 'LOW').length;
+      document.getElementById('stat-images').textContent = '1';
+
+      // Detection log
+      const log = document.getElementById('detection-log');
+      log.innerHTML = '';
+      analysisData.detections.forEach((d, idx) => {
+        const row = document.createElement('div');
+        const classInfo = getTargetClassInfo(d);
+        const name = d.display_name || d.region_id;
+        const isSelected = idx === selectedIdx;
+        row.className = `flex items-center gap-3 py-2 border-b border-slate-800/40 cursor-pointer rounded px-2 transition ${
+          isSelected ? 'bg-cyan-950/50 border-cyan-500/40 shadow-sm' : 'hover:bg-slate-800/40'
+        }`;
+        row.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${classInfo.color}"></span>
+          <span class="text-[11px] text-slate-300 font-mono flex-1 truncate">${name}</span>
+          <span class="text-[10px] text-slate-500 font-bold">${d.confidence_percentage ? d.confidence_percentage.toFixed(1) : (d.final_confidence * 100).toFixed(1)}%</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded font-semibold ${
+            d.priority === 'HIGH' ? 'bg-rose-950 text-rose-300' : d.priority === 'MEDIUM' ? 'bg-amber-950 text-amber-300' : 'bg-emerald-950 text-emerald-300'
+          }">${classInfo.label}</span>`;
+        row.onclick = () => selectDetection(idx);
+        log.appendChild(row);
+      });
+
+      if (!analysisData.detections.length) {
+        // Show no-detections message
+        document.getElementById('no-detections-msg').classList.remove('hidden');
+        document.getElementById('evidence-bars').innerHTML = '';
+        document.getElementById('target-tabs').innerHTML = '';
+        document.getElementById('debug-img').classList.add('hidden');
+        document.getElementById('debug-img-placeholder').classList.remove('hidden');
+        document.getElementById('debug-img-placeholder').innerHTML = '<i data-lucide="shield-check" class="w-10 h-10 text-emerald-400 mb-2"></i><p class="text-sm font-semibold text-emerald-400">Clean Seafloor &mdash; No Anomaly</p><p class="text-[11px] text-slate-500 mt-1">All candidate regions scored &le; 50% confidence and were skipped.</p>';
+        document.getElementById('r-confidence').textContent = '0.0%';
+        document.getElementById('r-confidence-bar').style.width = '0%';
+        document.getElementById('r-anomaly').textContent = '0.0%';
+        const prio = document.getElementById('r-priority');
+        prio.textContent = 'CLEAN SEABED';
+        prio.className = 'inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-slate-800 text-slate-400';
+        document.getElementById('r-shadow').innerHTML = '<i data-lucide="minus-circle" class="w-3 h-3 text-slate-500"></i><span class="text-[11px] text-slate-400">N/A</span>';
+        const bboxEl = document.getElementById('r-bbox');
+        if (bboxEl) bboxEl.textContent = 'N/A';
+        updateSonarMap(false);
+        lucide.createIcons();
+        return;
+      }
+      document.getElementById('no-detections-msg').classList.add('hidden');
+
+      const dets = analysisData.detections;
+      const det = dets[selectedIdx] || dets[0];
+
+      // Score cards
+      const confPct = det.confidence_percentage ? det.confidence_percentage.toFixed(1) : (det.final_confidence * 100).toFixed(1);
+      document.getElementById('r-confidence').textContent = `${confPct}%`;
+      document.getElementById('r-confidence-bar').style.width = `${confPct}%`;
+      document.getElementById('r-anomaly').textContent = `${(det.anomaly_score * 100).toFixed(1)}%`;
+
+      const prio = document.getElementById('r-priority');
+      const classInfo = getTargetClassInfo(det);
+      prio.textContent = `${classInfo.label.toUpperCase()} (${det.priority})`;
+      prio.className = `inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+        det.priority === 'HIGH' ? 'bg-rose-500 text-white glow-red' :
+        det.priority === 'MEDIUM' ? 'bg-amber-500 text-slate-900 glow-amber' :
+        'bg-emerald-500 text-slate-900 glow-green'
+      }`;
+
+      // Shadow
+      const sh = document.getElementById('r-shadow');
+      if (det.evidence_scores.shadow !== null && det.evidence_scores.shadow > 0) {
+        sh.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-400"></i><span class="text-[11px] text-emerald-300 font-semibold">${(det.evidence_scores.shadow*100).toFixed(0)}%</span>`;
+      } else {
+        sh.innerHTML = `<i data-lucide="minus-circle" class="w-3 h-3 text-slate-500"></i><span class="text-[11px] text-slate-400">N/A</span>`;
+      }
+
+      // Bounding Box
+      const bboxEl = document.getElementById('r-bbox');
+      if (bboxEl && det.bbox) {
+        bboxEl.textContent = `[${det.bbox[0]}, ${det.bbox[1]}, ${det.bbox[2]}, ${det.bbox[3]}]`;
+        bboxEl.title = `X: ${det.bbox[0]}, Y: ${det.bbox[1]}, Width: ${det.bbox[2]}px, Height: ${det.bbox[3]}px`;
+      }
+
+      if (analysisData.detector_used) {
+        document.getElementById('info-detector').textContent = formatPipelineMode(analysisData.detector_used);
+      }
+
+      // Target tabs
+      const tabs = document.getElementById('target-tabs');
+      tabs.innerHTML = '';
+      dets.forEach((d, i) => {
+        const b = document.createElement('button');
+        const cInfo = getTargetClassInfo(d);
+        b.className = `px-3 py-1.5 rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition whitespace-nowrap ${
+          i === selectedIdx ? 'tab-active shadow-md' : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/60'
+        }`;
+        b.innerHTML = `
+          <span>#${d.rank || (i + 1)}</span>
+          <span class="w-2 h-2 rounded-full" style="background-color:${cInfo.color}"></span>
+          <span class="text-[8px] font-mono px-1 rounded ${
+            d.priority === 'HIGH' ? 'bg-rose-950 text-rose-300' : d.priority === 'MEDIUM' ? 'bg-amber-950 text-amber-300' : 'bg-emerald-950 text-emerald-300'
+          }">${cInfo.label}</span>
+          <span class="text-slate-400 font-mono">${(d.confidence_percentage ? d.confidence_percentage : d.final_confidence * 100).toFixed(0)}%</span>`;
+        b.onclick = () => { selectDetection(i); };
+        tabs.appendChild(b);
+      });
+
+      // Debug image
+      const dbg = document.getElementById('debug-img');
+      const dbgPh = document.getElementById('debug-img-placeholder');
+      if (det.debug_image_path) {
+        dbg.src = `/api/detections/${det.detection_id}/debug-image?t=${Date.now()}`;
+        dbg.classList.remove('hidden');
+        dbgPh.classList.add('hidden');
+      } else if (det.image_url) {
+        dbg.src = det.image_url;
+        dbg.classList.remove('hidden');
+        dbgPh.classList.add('hidden');
+      } else {
+        dbg.classList.add('hidden');
+        dbgPh.classList.remove('hidden');
+      }
+
+      // Evidence bars
+      const bars = document.getElementById('evidence-bars');
+      bars.innerHTML = '';
+      const mods = [
+        { name: 'Anomaly Score', score: det.anomaly_score, color: 'from-cyan-500 to-cyan-400', text: 'text-cyan-400' },
+        { name: 'Shape & Solidity', score: det.evidence_scores.shape, color: 'from-blue-500 to-blue-400', text: 'text-blue-400' },
+        { name: 'GLCM Texture', score: det.evidence_scores.texture, color: 'from-purple-500 to-purple-400', text: 'text-purple-400' },
+        { name: 'Acoustic Shadow', score: det.evidence_scores.shadow, color: 'from-rose-500 to-rose-400', text: 'text-rose-400' },
+        { name: 'Size / Extent', score: det.evidence_scores.size, color: 'from-amber-500 to-amber-400', text: 'text-amber-400' },
+        { name: 'Seafloor Context', score: det.evidence_scores.context, color: 'from-emerald-500 to-emerald-400', text: 'text-emerald-400' },
+      ];
+      mods.forEach(m => {
+        const v = m.score !== null ? `${(m.score*100).toFixed(1)}%` : '<span class="text-slate-600 italic">N/A</span>';
+        const w = m.score !== null ? `${(m.score*100)}%` : '0%';
+        const row = document.createElement('div');
+        row.className = 'flex flex-col gap-1';
+        row.innerHTML = `
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-400">${m.name}</span>
+            <span class="font-mono ${m.text}">${v}</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden">
+            <div class="bg-gradient-to-r ${m.color} h-full rounded-full transition-all duration-700" style="width:${w}"></div>
+          </div>`;
+        bars.appendChild(row);
+      });
+
+      // Radar chart
+      updateRadar(det);
+
+      // SonarMap Update
+      updateSonarMap(fitBounds);
+
+      lucide.createIcons();
+    }
+
+    // --- Synchronized Selection Handler ---
+    function selectDetection(idx) {
+      selectedIdx = idx;
+      renderResults(false);
+      if (map && analysisData && analysisData.detections && analysisData.detections[idx]) {
+        const d = analysisData.detections[idx];
+        if (d.geolocation && d.geolocation.available && d.geolocation.latitude != null) {
+          map.panTo([d.geolocation.latitude, d.geolocation.longitude], { animate: true, duration: 0.6 });
+          if (mapMarkers[idx]) {
+            mapMarkers[idx].openPopup();
+          }
+        }
+      }
+    }
+
+    // --- Radar Chart ---
+    function updateRadar(det) {
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      const data = [
+        det.anomaly_score || 0,
+        det.evidence_scores.shape || 0,
+        det.evidence_scores.texture || 0,
+        det.evidence_scores.shadow || 0,
+        det.evidence_scores.size || 0,
+        det.evidence_scores.context || 0
+      ];
+      if (radarChart) radarChart.destroy();
+      const isLight = document.documentElement.classList.contains('light');
+      const gridColor = isLight ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148,163,184,0.08)';
+      const labelColor = isLight ? '#041e42' : '#94a3b8';
+
+      radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['Anomaly', 'Shape', 'Texture', 'Shadow', 'Size', 'Context'],
+          datasets: [{
+            data,
+            backgroundColor: isLight ? 'rgba(2, 132, 199, 0.15)' : 'rgba(6,182,212,0.15)',
+            borderColor: isLight ? 'rgba(2, 132, 199, 0.85)' : 'rgba(6,182,212,0.8)',
+            pointBackgroundColor: isLight ? 'rgba(2, 132, 199, 1)' : 'rgba(6,182,212,1)',
+            pointBorderColor: isLight ? '#ffffff' : '#0b1120',
+            pointBorderWidth: 2,
+            borderWidth: 2,
+            pointRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0, max: 1,
+              ticks: { display: false, stepSize: 0.2 },
+              grid: { color: gridColor },
+              angleLines: { color: gridColor },
+              pointLabels: { color: labelColor, font: { size: 9, family: 'monospace', weight: isLight ? 'bold' : 'normal' } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // --- SonarMap Implementation (refer/src/components/SonarMap.tsx) ---
+    const CLASS_FORMATTERS = {
+      ghost_net: { label: 'Ghost Net', color: '#FFB800', badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+      pipeline: { label: 'Pipeline', color: '#00F0FF', badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+      shipwreck: { label: 'Shipwreck', color: '#FF3366', badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+      fishing_gear: { label: 'Fishing Gear', color: '#00FF66', badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+      mine_cylinder: { label: 'Mine Cylinder', color: '#B026FF', badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+      high: { label: 'High Priority', color: '#f43f5e', badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+      medium: { label: 'Medium Priority', color: '#f59e0b', badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+      low: { label: 'Low Priority', color: '#10b981', badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' }
+    };
+
+    function getTargetClassInfo(det) {
+      if (det.object_class) {
+        const norm = det.object_class.toLowerCase().replace(/ /g, '_');
+        if (CLASS_FORMATTERS[norm]) return CLASS_FORMATTERS[norm];
+      }
+      const prio = (det.priority || 'MEDIUM').toLowerCase();
+      return CLASS_FORMATTERS[prio] || { label: 'Anomaly Target', color: '#00F0FF', badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' };
+    }
+
+    function createCustomMarkerIcon(targetClass, priority, isSelected) {
+      const normClass = (targetClass || '').toLowerCase().replace(/ /g, '_');
+      const formatter = CLASS_FORMATTERS[normClass] || CLASS_FORMATTERS[(priority || 'medium').toLowerCase()] || { color: '#00F0FF', label: 'Anomaly' };
+      const color = formatter.color;
+      const size = isSelected ? 36 : 28;
+
+      const html = `
+        <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+          ${isSelected ? `<div style="position: absolute; width: ${size + 14}px; height: ${size + 14}px; border-radius: 50%; border: 2px solid ${color}; opacity: 0.75;" class="sonar-ping-active"></div>` : ''}
+          <div style="
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            background-color: #0B132B;
+            border: 2px solid ${color};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 ${isSelected ? '14px' : '8px'} ${color};
+            cursor: pointer;
+            transition: all 0.25s ease;
+          ">
+            <svg width="${size * 0.55}" height="${size * 0.55}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="3.5" fill="${color}"></circle>
+              <line x1="12" y1="2" x2="12" y2="6"></line>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="2" y1="12" x2="6" y2="12"></line>
+              <line x1="18" y1="12" x2="22" y2="12"></line>
+            </svg>
+          </div>
+        </div>
+      `;
+
+      return L.divIcon({
+        className: 'custom-sonar-marker',
+        html,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -size / 2]
+      });
+    }
+
+    function initMap() {
+      const el = document.getElementById('map');
+      if (!el || map) return;
+
+      const isLight = document.documentElement.classList.contains('light');
+      const tileUrl = isLight 
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+      map = L.map('map', {
+        zoomControl: true,
+        attributionControl: true
+      }).setView([9.9520, 76.1250], 15);
+
+      mapTileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      setTimeout(() => map.invalidateSize(), 200);
+    }
+
+    function projectCoordinate(lat, lon, bearingDeg, distanceM) {
+      const R = 6371000;
+      const d = distanceM / R;
+      const rad = Math.PI / 180;
+      const θ = bearingDeg * rad;
+      const φ1 = lat * rad;
+      const λ1 = lon * rad;
+
+      const sinφ2 = Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(θ);
+      const φ2 = Math.asin(sinφ2);
+      const y = Math.sin(θ) * Math.sin(d) * Math.cos(φ1);
+      const x = Math.cos(d) - Math.sin(φ1) * sinφ2;
+      const λ2 = λ1 + Math.atan2(y, x);
+
+      return [φ2 / rad, λ2 / rad];
+    }
+
+    function updateSonarMap(fitBounds = false) {
+      initMap();
+      if (!map) return;
+
+      const overlay = document.getElementById('map-empty-overlay');
+      const countEl = document.getElementById('map-target-count');
+
+      // Clear existing markers, tracklines and layer groups
+      mapMarkers.forEach(m => { if (m) map.removeLayer(m); });
+      mapMarkers = [];
+      if (mapTrackline) {
+        map.removeLayer(mapTrackline);
+        mapTrackline = null;
+      }
+      if (mapLayers && mapLayers.length) {
+        mapLayers.forEach(l => { if (l) map.removeLayer(l); });
+        mapLayers = [];
+      }
+
+      // 1. Survey Navigation Telemetry
+      const surveyLat = analysisData?.survey_latitude ?? analysisData?.route_point?.latitude ?? lockedTelemetry?.lat;
+      const surveyLon = analysisData?.survey_longitude ?? analysisData?.route_point?.longitude ?? lockedTelemetry?.lon;
+      const heading = analysisData?.route_point?.heading ?? (lockedTelemetry?.heading != null ? lockedTelemetry.heading : parseFloat(document.getElementById('meta-heading')?.value || '0'));
+      const altitude = analysisData?.route_point?.altitude ?? lockedTelemetry?.altitude;
+      const sonarRange = 100; // standard SSS acoustic range per side in meters
+
+      // 2. Anomaly Detections with Geolocation
+      const detectionPoints = [];
+      if (analysisData && analysisData.detections && analysisData.detections.length) {
+        analysisData.detections.forEach((det, idx) => {
+          if (det.geolocation && det.geolocation.available && det.geolocation.latitude != null && det.geolocation.longitude != null) {
+            detectionPoints.push({ det, idx, lat: det.geolocation.latitude, lon: det.geolocation.longitude });
+          }
+        });
+      }
+
+      const hasSurveyPos = (surveyLat != null && surveyLon != null);
+      const hasDetections = (detectionPoints.length > 0);
+
+      if (!hasSurveyPos && !hasDetections) {
+        if (overlay) overlay.classList.remove('hidden');
+        if (countEl) countEl.textContent = '0 Georeferenced Points';
+        return;
+      }
+
+      if (overlay) overlay.classList.add('hidden');
+
+      const allCoordsForBounds = [];
+
+      // 3. Multi-Waypoint Mission Route (if JSON had multiple waypoints/pings)
+      const hasMultiRoute = Array.isArray(analysisData?.route) && analysisData.route.length > 1;
+
+      if (hasMultiRoute) {
+        const routeCoords = analysisData.route.map(w => [w.latitude, w.longitude]);
+        mapTrackline = L.polyline(routeCoords, {
+          color: '#00F0FF',
+          weight: 3.5,
+          dashArray: '8, 6',
+          opacity: 0.9
+        }).addTo(map);
+        mapLayers.push(mapTrackline);
+        routeCoords.forEach(c => allCoordsForBounds.push(c));
+
+        analysisData.route.forEach((wpt, wIdx) => {
+          const wMarker = L.circleMarker([wpt.latitude, wpt.longitude], {
+            radius: 5,
+            fillColor: '#00F0FF',
+            color: '#ffffff',
+            weight: 1.5,
+            fillOpacity: 0.9
+          }).addTo(map);
+          wMarker.bindPopup(`<span class="font-mono text-xs">Waypoint #${wIdx + 1}: ${wpt.latitude.toFixed(6)}°, ${wpt.longitude.toFixed(6)}°</span>`);
+          mapLayers.push(wMarker);
+        });
+      } else if (hasSurveyPos) {
+        // Single waypoint: Draw along-track survey flight line and swath corridor
+        const backPt = projectCoordinate(surveyLat, surveyLon, (heading + 180) % 360, 160);
+        const fwdPt = projectCoordinate(surveyLat, surveyLon, heading, 160);
+        const trackCoords = [backPt, [surveyLat, surveyLon], fwdPt];
+
+        // Flight Path Polyline
+        mapTrackline = L.polyline(trackCoords, {
+          color: '#00F0FF',
+          weight: 3.5,
+          dashArray: '8, 6',
+          opacity: 0.85
+        }).addTo(map);
+        mapLayers.push(mapTrackline);
+        trackCoords.forEach(c => allCoordsForBounds.push(c));
+
+        // Swath Coverage Corridor Polygon (+/- sonarRange port/starboard)
+        const p1 = projectCoordinate(backPt[0], backPt[1], (heading - 90 + 360) % 360, sonarRange);
+        const p2 = projectCoordinate(backPt[0], backPt[1], (heading + 90) % 360, sonarRange);
+        const p3 = projectCoordinate(fwdPt[0], fwdPt[1], (heading + 90) % 360, sonarRange);
+        const p4 = projectCoordinate(fwdPt[0], fwdPt[1], (heading - 90 + 360) % 360, sonarRange);
+        const corridor = L.polygon([p1, p2, p3, p4], {
+          color: '#00F0FF',
+          weight: 1.5,
+          dashArray: '4, 4',
+          fillColor: '#00F0FF',
+          fillOpacity: 0.08
+        }).addTo(map);
+        mapLayers.push(corridor);
+        [p1, p2, p3, p4].forEach(c => allCoordsForBounds.push(c));
+
+        // AUV Waypoint Marker with Direction Arrow
+        const auvHtml = `
+          <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #00F0FF; opacity: 0.5;" class="sonar-ping-active"></div>
+            <div style="
+              width: 32px; height: 32px; border-radius: 50%; background-color: #041e42;
+              border: 2px solid #00F0FF; display: flex; align-items: center; justify-content: center;
+              box-shadow: 0 0 12px #00F0FF; cursor: pointer; transform: rotate(${heading}deg);
+            ">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#00F0FF" stroke="#00F0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+              </svg>
+            </div>
+          </div>
+        `;
+        const auvIcon = L.divIcon({
+          className: 'custom-auv-marker',
+          html: auvHtml,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+          popupAnchor: [0, -17]
+        });
+
+        const auvMarker = L.marker([surveyLat, surveyLon], { icon: auvIcon }).addTo(map);
+        auvMarker.bindPopup(`
+          <div class="p-1 font-mono text-xs space-y-1.5 min-w-[210px]">
+            <div class="border-b border-slate-700/60 pb-1 flex items-center justify-between">
+              <span class="font-bold text-cyan-300">AUV Flight Position</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">LOCKED</span>
+            </div>
+            <div class="space-y-0.5 text-slate-300 text-[11px]">
+              <div><strong class="text-slate-400">Position: </strong><span class="text-white">${surveyLat.toFixed(6)}°, ${surveyLon.toFixed(6)}°</span></div>
+              <div><strong class="text-slate-400">Heading: </strong><span class="text-cyan-400 font-bold">${heading.toFixed(1)}°</span></div>
+              ${altitude != null ? `<div><strong class="text-slate-400">Altitude: </strong><span>${altitude.toFixed(1)} m</span></div>` : ''}
+              <div><strong class="text-slate-400">Swath Width: </strong><span>${sonarRange * 2} m</span></div>
+            </div>
+          </div>
+        `);
+        mapLayers.push(auvMarker);
+        allCoordsForBounds.push([surveyLat, surveyLon]);
+
+        // Keep multi-ping session survey trackline
+        if (analysisData && analysisData.filename) {
+          const alreadyInSession = sessionSurveyRoute.some(p => p.filename === analysisData.filename);
+          if (!alreadyInSession) {
+            sessionSurveyRoute.push({ lat: surveyLat, lon: surveyLon, filename: analysisData.filename, heading });
+          }
+        }
+        if (sessionSurveyRoute.length > 1) {
+          const sessionTrack = L.polyline(sessionSurveyRoute.map(p => [p.lat, p.lon]), {
+            color: '#38bdf8',
+            weight: 2,
+            dashArray: '4, 6',
+            opacity: 0.65
+          }).addTo(map);
+          mapLayers.push(sessionTrack);
+          sessionSurveyRoute.forEach(p => allCoordsForBounds.push([p.lat, p.lon]));
+        }
+      }
+
+      // 4. Anomaly Detection Markers & Offset Connector Paths
+      detectionPoints.forEach(item => {
+        const isSelected = item.idx === selectedIdx;
+        const classInfo = getTargetClassInfo(item.det);
+        const icon = createCustomMarkerIcon(item.det.object_class, item.det.priority, isSelected);
+
+        const marker = L.marker([item.lat, item.lon], { icon }).addTo(map);
+        allCoordsForBounds.push([item.lat, item.lon]);
+
+        // Draw offset ray connecting survey path to detected target
+        if (hasSurveyPos) {
+          const offsetRay = L.polyline([[surveyLat, surveyLon], [item.lat, item.lon]], {
+            color: '#FFB800',
+            weight: 2,
+            dashArray: '5, 4',
+            opacity: 0.85
+          }).addTo(map);
+          mapLayers.push(offsetRay);
+        }
+
+        const displayName = item.det.display_name || item.det.region_id || classInfo.label;
+        const prioBadge = item.det.priority === 'HIGH' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : item.det.priority === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+        const confPct = item.det.confidence_percentage ? item.det.confidence_percentage.toFixed(0) : Math.round(item.det.final_confidence * 100);
+
+        const popupHtml = `
+          <div class="p-1 font-mono text-xs space-y-2 min-w-[220px]">
+            <div class="border-b border-slate-700/60 pb-1.5 flex items-center justify-between">
+              <span class="font-bold text-white text-sm tracking-wide">${displayName}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-medium border ${prioBadge}">
+                ${item.det.priority}
+              </span>
+            </div>
+            <div class="space-y-1 text-slate-300 text-[11px]">
+              <div class="flex justify-between"><span class="text-slate-400">Class:</span><span class="text-white font-medium">${classInfo.label}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Confidence:</span><span class="text-cyan-300 font-bold">${confPct}%</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Latitude:</span><span class="text-slate-100 font-mono">${item.lat.toFixed(6)}° N</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Longitude:</span><span class="text-slate-100 font-mono">${item.lon.toFixed(6)}° E</span></div>
+            </div>
+            <div class="pt-1.5 border-t border-slate-800 text-[10px] text-cyan-400/90 flex items-center gap-1">
+              <i data-lucide="navigation-2" class="w-3 h-3"></i>
+              <span>Click to sync imagery & telemetry</span>
+            </div>
+          </div>
+        `;
+        marker.bindPopup(popupHtml);
+        marker.on('click', () => { selectDetection(item.idx); });
+        mapMarkers[item.idx] = marker;
+      });
+
+      if (countEl) {
+        const totalPoints = (hasSurveyPos ? 1 : 0) + detectionPoints.length;
+        const stateText = detectionPoints.length > 0
+          ? 'Survey Path & Targets Active'
+          : (analysisData ? 'Clean Seabed · Survey Path Active' : 'Telemetry Position Locked');
+        countEl.textContent = `${totalPoints} Georeferenced Point${totalPoints === 1 ? '' : 's'} (${stateText})`;
+      }
+
+      // Handle pan and bounds fitting
+      if (allCoordsForBounds.length > 1) {
+        const bounds = L.latLngBounds(allCoordsForBounds);
+        map.fitBounds(bounds, { padding: [45, 45], maxZoom: 16 });
+      } else if (allCoordsForBounds.length === 1) {
+        map.setView(allCoordsForBounds[0], 16);
+      }
+
+      setTimeout(() => map.invalidateSize(), 150);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // --- Arabian Sea Survey Track Loader (refer/src/data/synthetic/fixtures.ts) ---
+    function loadArabianSeaSurvey() {
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('results-panel').classList.remove('hidden');
+      document.getElementById('results-panel').classList.add('flex');
+
+      analysisData = {
+        filename: 'sonar_survey_001.xtf (Arabian Sea Cochin Shelf Mission)',
+        image_dimensions: [500, 500],
+        total_detections: 5,
+        timestamp: new Date().toISOString(),
+        detector_used: 'Multi-Channel Evidence Fusion',
+        detections: [
+          {
+            detection_id: 'det_ping_1',
+            region_id: 'PING_0001 (Ghost Net)',
+            rank: 1,
+            object_class: 'ghost_net',
+            display_name: 'Ghost Net (Entangled Gear)',
+            bbox: [140, 160, 260, 280],
+            anomaly_score: 0.93,
+            final_confidence: 0.91,
+            confidence_percentage: 91.0,
+            priority: 'HIGH',
+            telemetry: { heading: 82.8, altitude: 18.2, range: 50.0, side: 'starboard' },
+            evidence_scores: { shape: 0.92, texture: 0.88, shadow: 0.95, size: 0.84, context: 0.90 },
+            geolocation: { available: true, latitude: 9.952000, longitude: 76.125000, reason: null },
+            image_url: '/static/images/ping_0001.png'
+          },
+          {
+            detection_id: 'det_ping_2',
+            region_id: 'PING_0002 (Pipeline)',
+            rank: 2,
+            object_class: 'pipeline',
+            display_name: 'Subsea Pipeline Corridor',
+            bbox: [100, 240, 420, 120],
+            anomaly_score: 0.89,
+            final_confidence: 0.87,
+            confidence_percentage: 87.0,
+            priority: 'HIGH',
+            telemetry: { heading: 83.1, altitude: 18.0, range: 50.0, side: 'port' },
+            evidence_scores: { shape: 0.94, texture: 0.72, shadow: 0.89, size: 0.91, context: 0.85 },
+            geolocation: { available: true, latitude: 9.952500, longitude: 76.125700, reason: null },
+            image_url: '/static/images/ping_0002.png'
+          },
+          {
+            detection_id: 'det_ping_3',
+            region_id: 'PING_0003 (Shipwreck)',
+            rank: 3,
+            object_class: 'shipwreck',
+            display_name: 'Historical Shipwreck Hull',
+            bbox: [190, 180, 310, 240],
+            anomaly_score: 0.86,
+            final_confidence: 0.84,
+            confidence_percentage: 84.0,
+            priority: 'HIGH',
+            telemetry: { heading: 82.5, altitude: 18.4, range: 50.0, side: 'starboard' },
+            evidence_scores: { shape: 0.85, texture: 0.81, shadow: 0.92, size: 0.88, context: 0.82 },
+            geolocation: { available: true, latitude: 9.951400, longitude: 76.124400, reason: null },
+            image_url: '/static/images/ping_0003.png'
+          },
+          {
+            detection_id: 'det_ping_4',
+            region_id: 'PING_0004 (Fishing Gear)',
+            rank: 4,
+            object_class: 'fishing_gear',
+            display_name: 'Abandoned Trap / Crab Pot',
+            bbox: [210, 130, 190, 170],
+            anomaly_score: 0.81,
+            final_confidence: 0.79,
+            confidence_percentage: 79.0,
+            priority: 'MEDIUM',
+            telemetry: { heading: 83.5, altitude: 17.9, range: 50.0, side: 'port' },
+            evidence_scores: { shape: 0.78, texture: 0.75, shadow: 0.82, size: 0.74, context: 0.77 },
+            geolocation: { available: true, latitude: 9.952900, longitude: 76.126600, reason: null },
+            image_url: '/static/images/ping_0004.png'
+          },
+          {
+            detection_id: 'det_ping_5',
+            region_id: 'PING_0005 (Mine Cylinder)',
+            rank: 5,
+            object_class: 'mine_cylinder',
+            display_name: 'Cylindrical Metal Target',
+            bbox: [280, 260, 110, 80],
+            anomaly_score: 0.75,
+            final_confidence: 0.73,
+            confidence_percentage: 73.0,
+            priority: 'MEDIUM',
+            telemetry: { heading: 82.0, altitude: 18.6, range: 50.0, side: 'starboard' },
+            evidence_scores: { shape: 0.81, texture: 0.68, shadow: 0.79, size: 0.65, context: 0.70 },
+            geolocation: { available: true, latitude: 9.951000, longitude: 76.126100, reason: null },
+            image_url: '/static/images/ping_0005.png'
+          }
+        ]
+      };
+
+      selectedIdx = 0;
+      renderResults(true);
+
+      const mapEl = document.getElementById('section-map');
+      if (mapEl) {
+        mapEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+
+    // --- Theme Switcher Logic ---
+    function applyTheme(theme) {
+      const html = document.documentElement;
+      const themeText = document.getElementById('theme-text');
+      if (theme === 'light') {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        if (themeText) themeText.textContent = 'Dark';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        if (themeText) themeText.textContent = 'Light';
+      }
+      localStorage.setItem('ghostnet_theme', theme);
+      if (mapTileLayer) {
+        mapTileLayer.setUrl(theme === 'light' 
+          ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+      }
+
+      if (radarChart && analysisData && analysisData.detections && analysisData.detections[selectedIdx]) {
+        updateRadar(analysisData.detections[selectedIdx]);
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function toggleTheme() {
+      const current = localStorage.getItem('ghostnet_theme') || 'dark';
+      const target = current === 'dark' ? 'light' : 'dark';
+      applyTheme(target);
+    }
+
+    // Initialize Theme immediately
+    (function initDashboardTheme() {
+      const saved = localStorage.getItem('ghostnet_theme') || 'dark';
+      applyTheme(saved);
+    })();
+
+    // --- History ---
+    async function loadHistory(filter) {
+      try {
+        const url = filter === 'high' ? '/api/detections/high-priority?limit=20' : '/api/detections?limit=20';
+        const r = await fetch(url);
+        const items = await r.json();
+        const el = document.getElementById('history-list');
+        el.innerHTML = '';
+
+        if (!items.length) {
+          el.innerHTML = '<div class="text-slate-600 text-center py-6 text-[10px]">No detections found.</div>';
+          return;
+        }
+
+        // Update stats
+        const all = await fetch('/api/detections?limit=500').then(r => r.json());
+        document.getElementById('stat-total').textContent = all.length;
+        document.getElementById('stat-high').textContent = all.filter(d => d.priority === 'HIGH').length;
+        document.getElementById('stat-medium').textContent = all.filter(d => d.priority === 'MEDIUM').length;
+        document.getElementById('stat-low').textContent = all.filter(d => d.priority === 'LOW').length;
+        const images = new Set(all.map(d => d.detection_id.split('-')[0]));
+        document.getElementById('stat-images').textContent = new Set(all.map(d => d.region_id)).size;
+
+        items.forEach(d => {
+          const pColor = d.priority === 'HIGH' ? 'text-rose-400' : d.priority === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400';
+          const pBg = d.priority === 'HIGH' ? 'bg-rose-950/40 border-rose-900/30' : d.priority === 'MEDIUM' ? 'bg-amber-950/40 border-amber-900/30' : 'bg-emerald-950/40 border-emerald-900/30';
+          const row = document.createElement('div');
+          row.className = `p-2.5 ${pBg} rounded-lg border cursor-pointer hover:brightness-125 transition group`;
+          row.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full ${d.priority === 'HIGH' ? 'bg-rose-400' : d.priority === 'MEDIUM' ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+                <span class="font-mono text-slate-300 text-[10px]">${d.region_id.slice(0,8)}</span>
+              </div>
+              <span class="font-mono font-bold text-[11px] ${pColor}">${(d.final_confidence*100).toFixed(0)}%</span>
+            </div>
+            <div class="flex justify-between mt-1 text-[9px] text-slate-500">
+              <span>${new Date(d.created_at).toLocaleString()}</span>
+              <span class="font-mono ${pColor}">${d.priority}</span>
+            </div>`;
+          row.onclick = async () => {
+            try {
+              const det = await fetch(`/api/detections/${d.detection_id}`).then(r => r.json());
+              analysisData = { detections: [det], filename: '历史记录', image_dimensions: [0,0], total_detections: 1, detector_used: '-', timestamp: det.created_at };
+              selectedIdx = 0;
+              renderResults();
+            } catch { alert('Failed to load detection details.'); }
+          };
+          el.appendChild(row);
+        });
+      } catch (e) {
+        console.error('History load failed:', e);
+      }
+    }
+
+    // --- Refresh ---
+    document.getElementById('btn-refresh').addEventListener('click', () => loadHistory());
+    document.getElementById('btn-high-priority').addEventListener('click', () => loadHistory('high'));
+    document.getElementById('btn-all-detections').addEventListener('click', () => loadHistory());
+
+    // --- Report Download ---
+    document.getElementById('btn-report').addEventListener('click', () => {
+      if (!analysisData) return;
+      const det = analysisData.detections[selectedIdx];
+      window.open(`/api/detections/${det.detection_id}/report?format=markdown`, '_blank');
+    });
+  </script>
+</body>
+</html>

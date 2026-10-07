@@ -1,0 +1,14 @@
+{
+  "image": "ping_0002.png",
+  "timestamp": "2026-09-23T09:30:02Z",
+  "latitude": 9.952500,
+  "longitude": 76.125700,
+  "heading": 83.1,
+  "altitude": 18.0,
+  "sonar_range": 50.0,
+  "resolution": 0.1,
+  "swath_channel": "port",
+  "target_class": "pipeline",
+  "confidence": 0.87,
+  "notes": "Corridor pipeline infrastructure"
+}

@@ -1,0 +1,72 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Environment Variables
+.env
+!.env.example
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Storage directories contents (keep dirs via .gitkeep if present)
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/debug_outputs/*
+!storage/debug_outputs/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep
+storage/test_uploads/
+storage/test_debug_outputs/
+
+# Large model backup files
+weights/*.bak
+weights/*_old.pt
+
+# Testing & Linting
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

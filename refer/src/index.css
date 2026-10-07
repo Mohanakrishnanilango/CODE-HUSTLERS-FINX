@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #060B14;
+    color: #F1F5F9;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom sonar dark scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0B132B;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1C2541;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00F0FF;
+  }
+}
+
+/* Leaflet dark theme map enhancements */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #08101E !important;
+  font-family: inherit;
+  border-radius: 0.5rem;
+}
+
+.leaflet-tile {
+  filter: invert(100%) hue-rotate(185deg) brightness(85%) contrast(120%) saturate(75%);
+}
+
+.leaflet-popup-content-wrapper {
+  background: #0B132B !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #1C2541 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 240, 255, 0.2) !important;
+  border-radius: 0.5rem !important;
+}
+
+.leaflet-popup-tip {
+  background: #0B132B !important;
+  border: 1px solid #1C2541 !important;
+}
+
+.leaflet-popup-close-button {
+  color: #94A3B8 !important;
+}
+
+/* Radar scan animation */
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar {
+  animation: radar-sweep 4s linear infinite;
+  transform-origin: center center;
+}
+
+/* Marine sonar grid overlay */
+.sonar-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

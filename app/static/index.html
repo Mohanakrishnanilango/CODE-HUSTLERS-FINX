@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GhostNet SSS Sentinel — Ocean Science & Conservation</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              950: '#020b18',
+              900: '#041e42', // OCEARCH Official Deep Ocean Navy
+              850: '#062856',
+              800: '#0a326c',
+              700: '#11448b',
+              600: '#1b5bb5'
+            },
+            ocean: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0284c7',
+              600: '#0369a1',
+              accent: '#00C4CC'
+            },
+            coral: {
+              500: '#f97316',
+              600: '#ea580c'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            heading: ['"Montserrat"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Smooth transitions for theme switching */
+    html {
+      scroll-behavior: smooth;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    /* Dark Theme Styles */
+    html.dark body {
+      background: radial-gradient(circle at 50% 0%, #062856 0%, #041e42 40%, #020b18 100%);
+      color: #e2e8f0;
+    }
+    html.dark .card-ocearch {
+      background: rgba(4, 30, 66, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 30px -10px rgba(2, 11, 24, 0.7);
+    }
+    html.dark .card-ocearch:hover {
+      border-color: rgba(0, 196, 204, 0.45);
+      box-shadow: 0 16px 40px -10px rgba(0, 196, 204, 0.2);
+    }
+    html.dark .nav-ocearch {
+      background: rgba(4, 30, 66, 0.92);
+      border-color: rgba(56, 189, 248, 0.15);
+    }
+    html.dark .fact-num {
+      color: rgba(56, 189, 248, 0.3);
+    }
+
+    /* Light Theme Styles */
+    html.light body {
+      background: radial-gradient(circle at 50% 0%, #e0f2fe 0%, #f1f7fa 40%, #f8fafc 100%);
+      color: #1e293b;
+    }
+    html.light .card-ocearch {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      backdrop-filter: none;
+      box-shadow: 0 10px 30px -8px rgba(4, 30, 66, 0.08);
+    }
+    html.light .card-ocearch:hover {
+      border-color: #0284c7;
+      box-shadow: 0 16px 35px -8px rgba(2, 132, 199, 0.18);
+    }
+    html.light .nav-ocearch {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: #e2e8f0;
+      box-shadow: 0 4px 20px -2px rgba(4, 30, 66, 0.05);
+    }
+    html.light .fact-num {
+      color: rgba(2, 132, 199, 0.2);
+    }
+    html.light .text-slate-200 { color: #1e293b !important; }
+    html.light .text-slate-300 { color: #334155 !important; }
+    html.light .text-slate-400 { color: #475569 !important; }
+    html.light .text-slate-500 { color: #64748b !important; }
+
+    /* Radar Pulse Animation */
+    .pulse-ring {
+      animation: pulseRing 2.4s ease-in-out infinite;
+    }
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0, 196, 204, 0.4); }
+      50% { box-shadow: 0 0 0 14px rgba(0, 196, 204, 0); }
+    }
+
+    /* Wave effect */
+    .wave-divider {
+      background-repeat: repeat-x;
+      background-size: 1200px 48px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans transition-colors duration-300 antialiased">
+
+  <!-- TOP CONSERVATION TICKER (OCEARCH Style) -->
+  <div class="bg-navy-950 dark:bg-black text-cyan-300 text-[11px] font-mono py-1.5 px-4 text-center border-b border-cyan-500/20 flex items-center justify-center gap-6 overflow-hidden">
+    <div class="flex items-center gap-2 font-semibold tracking-wider">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span>OCEAN OBSERVATION NETWORK</span>
+    </div>
+    <span class="hidden md:inline text-slate-500">•</span>
+    <span class="hidden md:inline">SIH 2026: SMART INDIA HACKATHON (PROBLEM PS26057)</span>
+    <span class="hidden md:inline text-slate-500">•</span>
+    <span class="hidden lg:inline text-slate-300">SIDE-SCAN SONAR (SSS) REALTIME DETECTION</span>
+  </div>
+
+  <!-- NAVIGATION HEADER -->
+  <nav class="nav-ocearch sticky top-0 z-50 px-6 py-3.5 border-b backdrop-blur-xl transition-all duration-300">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="/" class="flex items-center gap-3 group">
+        <div class="p-2.5 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 dark:from-cyan-400/10 dark:to-blue-500/20 rounded-xl border border-cyan-500/30 pulse-ring">
+          <i data-lucide="radar" class="w-6 h-6 text-ocean-accent group-hover:rotate-45 transition duration-300"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-lg font-black tracking-widest font-heading text-navy-900 dark:text-white">GHOSTNET</h1>
+            <span class="text-ocean-accent font-black tracking-widest text-lg font-heading">SSS</span>
+          </div>
+          <p class="text-[9px] font-bold tracking-widest uppercase text-ocean-600 dark:text-ocean-300">Acoustic Ocean Sentinel</p>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <div class="hidden md:flex items-center gap-1 text-xs font-semibold uppercase tracking-wider">
+        <a href="/" class="px-4 py-2 rounded-lg bg-ocean-500/15 text-ocean-600 dark:text-cyan-300 font-bold border border-ocean-500/30">Home</a>
+        <a href="/dashboard" class="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-ocean-500 dark:hover:text-cyan-300 transition">Single Image</a>
+        <a href="/batch" class="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-ocean-500 dark:hover:text-cyan-300 transition">Batch Fleet</a>
+        <a href="#ocean-facts" class="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-ocean-500 dark:hover:text-cyan-300 transition">Ocean Facts</a>
+      </div>
+
+      <!-- Action Items & Light/Dark Mode Switcher -->
+      <div class="flex items-center gap-3">
+        
+        <!-- THEME TOGGLE BUTTON -->
+        <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Light / Dark Mode"
+                class="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-navy-900/80 text-slate-700 dark:text-cyan-300 hover:bg-slate-100 dark:hover:bg-navy-800 transition duration-200 shadow-sm flex items-center gap-2">
+          <i id="theme-icon-sun" data-lucide="sun" class="w-4 h-4 hidden dark:inline"></i>
+          <i id="theme-icon-moon" data-lucide="moon" class="w-4 h-4 inline dark:hidden text-navy-900"></i>
+          <span class="text-[11px] font-bold uppercase tracking-wider hidden sm:inline" id="theme-text">Light Mode</span>
+        </button>
+
+        <!-- CTA Launch Button -->
+        <a href="/dashboard" class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-ocean-500 to-cyan-500 hover:from-ocean-600 hover:to-cyan-600 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-cyan-500/25 transition">
+          <span>Start Detection</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION (OCEARCH Style Imagery & Bold Typography) -->
+  <section class="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden px-6">
+    
+    <!-- Background Glow Circles -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-b from-cyan-500/15 via-blue-600/10 to-transparent blur-3xl pointer-events-none rounded-full"></div>
+
+    <div class="max-w-6xl mx-auto text-center relative z-10">
+      
+      <!-- Top Pill Tag -->
+      <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-ocean-500/10 dark:bg-cyan-950/60 border border-ocean-500/30 text-ocean-600 dark:text-cyan-300 text-xs font-semibold mb-6">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        <span class="tracking-widest uppercase font-mono text-[11px]">Ocean Science & Autonomous Conservation</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black font-heading tracking-tight text-navy-900 dark:text-white leading-[1.1] mb-6">
+        PROTECTING OUR OCEANS.<br>
+        <span class="bg-gradient-to-r from-ocean-500 via-cyan-400 to-teal-300 bg-clip-text text-transparent">
+          CLEANING SEABED GHOST NETS.
+        </span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="max-w-2xl mx-auto text-base sm:text-lg text-slate-600 dark:text-slate-300 font-normal leading-relaxed mb-10">
+        Millions of discarded commercial fishing nets drift silently in the ocean abyss, entangling marine life and destroying coral reefs.
+        <strong>GhostNet SSS Sentinel</strong> uses high-frequency Side-Scan Sonar and multi-stage consensus voting to detect, locate, and clean underwater hazards.
+      </p>
+
+      <!-- Primary Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+        <a href="/dashboard" class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-gradient-to-r from-navy-900 to-ocean-600 dark:from-cyan-500 dark:to-blue-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center gap-2.5">
+          <i data-lucide="scan" class="w-4 h-4"></i>
+          <span>Single Sonar Scan</span>
+        </a>
+        <a href="/batch" class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white dark:bg-navy-900/90 text-navy-900 dark:text-cyan-300 border border-slate-300 dark:border-cyan-500/30 hover:border-ocean-500 font-bold text-sm uppercase tracking-wider shadow hover:shadow-md hover:scale-105 transition flex items-center justify-center gap-2.5">
+          <i data-lucide="layers" class="w-4 h-4 text-ocean-500"></i>
+          <span>Batch Fleet Survey</span>
+        </a>
+      </div>
+
+      <!-- LIVE SYSTEM STATUS BADGE STRIP -->
+      <div class="mt-12 inline-flex flex-wrap items-center justify-center gap-4 bg-white/70 dark:bg-navy-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-mono backdrop-blur-md shadow-sm">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Backend:</span>
+          <span class="text-emerald-500 font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ONLINE</span>
+        </div>
+        <span class="text-slate-300 dark:text-slate-700">|</span>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Active Pipeline:</span>
+          <span class="text-cyan-500 dark:text-cyan-400 font-bold">Multi-Stage Consensus Pipeline</span>
+        </div>
+        <span class="text-slate-300 dark:text-slate-700">|</span>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Evidence Fusion:</span>
+          <span class="text-ocean-500 dark:text-ocean-300 font-bold">5 Acoustic Channels</span>
+        </div>
+        <span class="text-slate-300 dark:text-slate-700">|</span>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Geolocation:</span>
+          <span class="text-amber-500 font-bold">WGS84 Subsea Raytracing</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMPACT & TELEMETRY NUMBERS BAR (OCEARCH Style Impact Counters) -->
+  <section class="bg-navy-900 text-white py-12 px-6 border-y border-cyan-500/20">
+    <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <div class="space-y-1">
+        <div class="text-3xl md:text-5xl font-black font-heading text-cyan-400">640,000+</div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Tons of Ghost Nets / Year</p>
+        <p class="text-[11px] text-slate-400">Lost global commercial fishing gear</p>
+      </div>
+      <div class="space-y-1">
+        <div class="text-3xl md:text-5xl font-black font-heading text-ocean-300">5-Channel</div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Explainable Evidence</p>
+        <p class="text-[11px] text-slate-400">Shadow, GLCM, Shape, Size, Context</p>
+      </div>
+      <div class="space-y-1">
+        <div class="text-3xl md:text-5xl font-black font-heading text-emerald-400">100%</div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Non-Fabricating Geolocation</p>
+        <p class="text-[11px] text-slate-400">Strict metadata verification math</p>
+      </div>
+      <div class="space-y-1">
+        <div class="text-3xl md:text-5xl font-black font-heading text-amber-400">&lt; 85ms</div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Real-Time Acoustic Inference</p>
+        <p class="text-[11px] text-slate-400">High-speed side-scan processing</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICK ACCESS WORKFLOW CARDS -->
+  <section class="py-16 px-6 max-w-6xl mx-auto w-full">
+    <div class="text-center mb-10">
+      <h2 class="text-xs font-bold font-mono tracking-widest text-ocean-600 dark:text-cyan-400 uppercase mb-2">OPERATIONAL CONSOLES</h2>
+      <h3 class="text-3xl font-extrabold font-heading text-navy-900 dark:text-white">Choose Your Mission Interface</h3>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Single Image Card -->
+      <a href="/dashboard" class="card-ocearch rounded-3xl p-7 flex flex-col justify-between group transition duration-300">
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="p-3 bg-ocean-500/10 dark:bg-cyan-500/10 rounded-2xl border border-ocean-500/20 text-ocean-600 dark:text-cyan-400 group-hover:scale-110 transition">
+              <i data-lucide="scan-line" class="w-7 h-7"></i>
+            </div>
+            <span class="text-[9px] font-mono font-bold px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30">SINGLE SCAN</span>
+          </div>
+          <h4 class="text-xl font-bold font-heading text-navy-900 dark:text-white mb-2.5 group-hover:text-ocean-500 dark:group-hover:text-cyan-300 transition">
+            Tactical HUD Dashboard
+          </h4>
+          <p class="text-xs text-slate-600 dark:text-slate-300 mb-5 leading-relaxed">
+            Upload an SSS sonar slice. Real-time multi-channel evidence radars, acoustic shadow validation corridors, and GLCM texture deltas.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-ocean-600 dark:text-cyan-400 text-xs font-bold uppercase tracking-wider">
+          <span>Open Console</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-1.5 transition"></i>
+        </div>
+      </a>
+
+      <!-- Georeferenced Map Card (from refer) -->
+      <a href="/map" class="card-ocearch rounded-3xl p-7 flex flex-col justify-between group transition duration-300 border-cyan-500/30">
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-400 group-hover:scale-110 transition">
+              <i data-lucide="map-pin" class="w-7 h-7"></i>
+            </div>
+            <span class="text-[9px] font-mono font-bold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">GEOREFERENCED</span>
+          </div>
+          <h4 class="text-xl font-bold font-heading text-navy-900 dark:text-white mb-2.5 group-hover:text-cyan-400 transition">
+            Georeferenced SonarMap
+          </h4>
+          <p class="text-xs text-slate-600 dark:text-slate-300 mb-5 leading-relaxed">
+            Direct towfish navigation mapping with OpenStreetMap tiles, SVG radar reticle target markers, survey tracklines, and two-way telemetry synchronization.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider">
+          <span>Launch SonarMap</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-1.5 transition"></i>
+        </div>
+      </a>
+
+      <!-- Batch Analysis Card -->
+      <a href="/batch" class="card-ocearch rounded-3xl p-7 flex flex-col justify-between group transition duration-300">
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-amber-500 group-hover:scale-110 transition">
+              <i data-lucide="database" class="w-7 h-7"></i>
+            </div>
+            <span class="text-[9px] font-mono font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">FLEET BATCH</span>
+          </div>
+          <h4 class="text-xl font-bold font-heading text-navy-900 dark:text-white mb-2.5 group-hover:text-amber-500 transition">
+            Fleet Batch Analysis
+          </h4>
+          <p class="text-xs text-slate-600 dark:text-slate-300 mb-5 leading-relaxed">
+            Batch-process multiple survey miles. Automatically clusters detections, merges consensus votes, and maps fleet-wide anomaly distributions.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
+          <span>Launch Batch</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-1.5 transition"></i>
+        </div>
+      </a>
+
+    </div>
+
+  </section>
+
+  <!-- OCEARCH-INSPIRED "OCEAN FACTS & SCIENCE" EDITORIAL SECTION -->
+  <section id="ocean-facts" class="py-20 px-6 border-t border-slate-200 dark:border-slate-800/80">
+    <div class="max-w-6xl mx-auto">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-ocean-500/10 text-ocean-600 dark:text-cyan-400 text-xs font-mono mb-3">
+          <i data-lucide="info" class="w-3.5 h-3.5"></i>
+          <span>EDUCATION & SCIENCE BRIEFING</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-heading text-navy-900 dark:text-white tracking-tight mb-4">
+          Ocean Facts & Acoustic Intelligence
+        </h2>
+        <p class="text-slate-600 dark:text-slate-300 text-base leading-relaxed">
+          Inspired by world-class ocean conservation research like OCEARCH, our system couples marine environmental science with advanced acoustic machine learning.
+        </p>
+      </div>
+
+      <!-- FACT 01 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-12 border-b border-slate-200 dark:border-slate-800">
+        <div class="lg:col-span-5 order-2 lg:order-1">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-4xl sm:text-5xl font-black font-heading fact-num">01</span>
+            <span class="text-xs font-mono font-bold tracking-widest text-ocean-600 dark:text-cyan-400 uppercase">The Hidden Threat</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-bold font-heading text-navy-900 dark:text-white mb-4">
+            What Is "Ghost Gear" and Why Is It Devastating?
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm mb-4">
+            Ghost gear refers to commercial fishing gear—nets, longlines, and crab pots—accidentally lost or abandoned at sea. Made from non-biodegradable synthetic polymers (nylon, polypropylene), these nets continue trapping and killing marine mammals, apex sharks, sea turtles, and corals for hundreds of years.
+          </p>
+          <div class="flex items-center gap-4 text-xs font-semibold text-ocean-600 dark:text-cyan-300">
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> Traps Apex Predators</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> Smothers Coral Reefs</span>
+          </div>
+        </div>
+        <div class="lg:col-span-7 order-1 lg:order-2">
+          <div class="card-ocearch rounded-3xl p-6 overflow-hidden relative group">
+            <div class="aspect-video rounded-2xl bg-navy-950 flex flex-col justify-center items-center text-center p-8 relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-tr from-cyan-900/40 via-blue-900/20 to-transparent"></div>
+              <i data-lucide="anchor" class="w-16 h-16 text-cyan-400/40 mb-3 group-hover:scale-110 transition duration-500"></i>
+              <div class="relative z-10">
+                <span class="text-xs font-mono text-cyan-300 font-bold uppercase tracking-wider block mb-1">Global Entanglement Crisis</span>
+                <p class="text-white text-lg font-bold max-w-md">Over 100,000 whales, dolphins, and seals are killed annually by derelict fishing nets.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FACT 02 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-12 border-b border-slate-200 dark:border-slate-800">
+        <div class="lg:col-span-7">
+          <div class="card-ocearch rounded-3xl p-6 overflow-hidden relative group">
+            <div class="aspect-video rounded-2xl bg-navy-950 flex flex-col justify-center items-center text-center p-8 relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-tl from-ocean-900/50 via-slate-900/30 to-transparent"></div>
+              <i data-lucide="radio-tower" class="w-16 h-16 text-ocean-300/40 mb-3 group-hover:scale-110 transition duration-500"></i>
+              <div class="relative z-10">
+                <span class="text-xs font-mono text-ocean-300 font-bold uppercase tracking-wider block mb-1">Acoustic Waterfall Mapping</span>
+                <p class="text-white text-lg font-bold max-w-md">High-frequency side-scan sonar creates continuous seabed intensity ribbons through turbid deep water.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lg:col-span-5">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-4xl sm:text-5xl font-black font-heading fact-num">02</span>
+            <span class="text-xs font-mono font-bold tracking-widest text-ocean-600 dark:text-cyan-400 uppercase">Subsea Sensing</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-bold font-heading text-navy-900 dark:text-white mb-4">
+            How Does Side-Scan Sonar (SSS) See in Zero Visibility?
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm mb-4">
+            Light attenuates rapidly in ocean water, rendering optical cameras blind past 5 to 10 meters. Side-Scan Sonar emits dual-sided acoustic fan beams (port and starboard). Hard objects, synthetic ropes, and wrecks backscatter sound violently (bright highlights) while casting distinct acoustic shadows behind them.
+          </p>
+          <div class="flex items-center gap-4 text-xs font-semibold text-ocean-600 dark:text-cyan-300">
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> Port & Starboard Swath</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> Acoustic Shadow Geometry</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FACT 03 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-12 border-b border-slate-200 dark:border-slate-800">
+        <div class="lg:col-span-5 order-2 lg:order-1">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-4xl sm:text-5xl font-black font-heading fact-num">03</span>
+            <span class="text-xs font-mono font-bold tracking-widest text-ocean-600 dark:text-cyan-400 uppercase">Artificial Intelligence</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-bold font-heading text-navy-900 dark:text-white mb-4">
+            Why Use a Multi-Stage Voting Architecture?
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm mb-4">
+            Single detection stages easily confuse natural geological ridges and boulders with man-made debris. Our pipeline deploys two specialized stages in concert: 
+            <strong>Stage A (Anomaly Detection)</strong> performs initial anomaly verification ("Is it artificial?"), while 
+            <strong>Stage B (Classification)</strong> identifies specific subsea classes (ghost net, crab pot, shipwreck, mine). Detections are IoU-clustered and evaluated against a rigorous voting decision matrix.
+          </p>
+          <div class="flex items-center gap-4 text-xs font-semibold text-ocean-600 dark:text-cyan-300">
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> IoU Cluster Merging</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> False Positive Elimination</span>
+          </div>
+        </div>
+        <div class="lg:col-span-7 order-1 lg:order-2">
+          <div class="card-ocearch rounded-3xl p-6 overflow-hidden relative group">
+            <div class="aspect-video rounded-2xl bg-navy-950 flex flex-col justify-center items-center text-center p-8 relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-tr from-amber-900/40 via-cyan-900/20 to-transparent"></div>
+              <i data-lucide="cpu" class="w-16 h-16 text-amber-400/40 mb-3 group-hover:scale-110 transition duration-500"></i>
+              <div class="relative z-10">
+                <span class="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider block mb-1">Dual-Stage Consensus</span>
+                <p class="text-white text-lg font-bold max-w-md">20.5M combined parameters voting deterministically to prevent false alarms on natural seabed reefs.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FACT 04 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-12">
+        <div class="lg:col-span-7">
+          <div class="card-ocearch rounded-3xl p-6 overflow-hidden relative group">
+            <div class="aspect-video rounded-2xl bg-navy-950 flex flex-col justify-center items-center text-center p-8 relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-tl from-emerald-900/40 via-cyan-900/20 to-transparent"></div>
+              <i data-lucide="map-pin" class="w-16 h-16 text-emerald-400/40 mb-3 group-hover:scale-110 transition duration-500"></i>
+              <div class="relative z-10">
+                <span class="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider block mb-1">Non-Fabricating Geolocation</span>
+                <p class="text-white text-lg font-bold max-w-md">Geodesic Vincenty raytracing converts pixel coordinates to precise WGS84 GPS latitude and longitude.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lg:col-span-5">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-4xl sm:text-5xl font-black font-heading fact-num">04</span>
+            <span class="text-xs font-mono font-bold tracking-widest text-ocean-600 dark:text-cyan-400 uppercase">Precision Salvage</span>
+          </div>
+          <h3 class="text-2xl sm:text-3xl font-bold font-heading text-navy-900 dark:text-white mb-4">
+            How Are Recovery Crews Guided to the Target?
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm mb-4">
+            Underwater retrieval operations cannot waste hours searching blind. Using nadir altitude, boat heading, survey latitude/longitude, and pixel cross-track resolution, our geolocation system computes exact target GPS coordinates without ever hallucinating coordinates if survey telemetry is incomplete.
+          </p>
+          <div class="flex items-center gap-4 text-xs font-semibold text-ocean-600 dark:text-cyan-300">
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> WGS84 Formatted</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> ROV Recovery Ready</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CALL TO ACTION (OCEARCH Style) -->
+  <section class="py-20 px-6 bg-gradient-to-b from-navy-900 to-navy-950 text-white text-center relative overflow-hidden">
+    <div class="max-w-4xl mx-auto relative z-10 space-y-6">
+      <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono">
+        <span>OCEAN RECOVERY IN ACTION</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black font-heading tracking-tight leading-tight">
+        Stay Curious. Keep Exploring.<br>Protect Our Oceans.
+      </h2>
+      <p class="text-slate-300 text-base max-w-2xl mx-auto leading-relaxed">
+        Join the initiative to locate, catalogue, and extract abandoned nets from marine ecosystems. Launch the detection dashboard to start analyzing side-scan sonar surveys now.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
+        <a href="/dashboard" class="px-8 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-navy-950 font-extrabold text-sm uppercase tracking-wider shadow-lg hover:scale-105 transition">
+          Launch Dashboard
+        </a>
+        <a href="/batch" class="px-8 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm uppercase tracking-wider border border-white/20 transition">
+          Batch Fleet Mode
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-black text-slate-400 text-xs py-10 px-6 border-t border-slate-800">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+      <div>
+        <div class="flex items-center justify-center md:justify-start gap-2 mb-1.5">
+          <span class="font-bold text-white tracking-widest text-sm font-heading">GHOSTNET SSS SENTINEL</span>
+          <span class="text-cyan-400 font-mono text-[10px]">v1.0</span>
+        </div>
+        <p class="text-slate-500">Autonomous Side-Scan Sonar Ghost Net Detection & Evidence Fusion System.</p>
+        <p class="text-[11px] text-slate-600 mt-1">Smart India Hackathon (SIH 2026) — Problem Statement PS26057.</p>
+      </div>
+
+      <div class="flex items-center gap-6 font-semibold uppercase tracking-wider text-[11px]">
+        <a href="/" class="hover:text-cyan-400 transition">Home</a>
+        <a href="/dashboard" class="hover:text-cyan-400 transition">Dashboard</a>
+        <a href="/batch" class="hover:text-cyan-400 transition">Batch Fleet</a>
+        <a href="/health" class="hover:text-cyan-400 transition">Health</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT FOR THEME TOGGLE & PERSISTENCE -->
+  <script>
+    // Theme Management Logic
+    function applyTheme(theme) {
+      const html = document.documentElement;
+      const themeText = document.getElementById('theme-text');
+      
+      if (theme === 'light') {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        if (themeText) themeText.textContent = 'Dark Mode';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        if (themeText) themeText.textContent = 'Light Mode';
+      }
+      localStorage.setItem('ghostnet_theme', theme);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function toggleTheme() {
+      const current = localStorage.getItem('ghostnet_theme') || 'dark';
+      const target = current === 'dark' ? 'light' : 'dark';
+      applyTheme(target);
+    }
+
+    // Initialize Theme on Page Load
+    (function initTheme() {
+      const saved = localStorage.getItem('ghostnet_theme') || 'dark';
+      applyTheme(saved);
+      if (window.lucide) lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "image": "ping_0001.png",
+  "timestamp": "2026-09-23T09:30:01Z",
+  "latitude": 9.952000,
+  "longitude": 76.125000,
+  "heading": 82.8,
+  "altitude": 18.2,
+  "sonar_range": 50.0,
+  "resolution": 0.1,
+  "swath_channel": "starboard",
+  "target_class": "ghost_net",
+  "confidence": 0.91,
+  "notes": "Arabian Sea Cochin Shelf Mission - Entangled net cluster detected"
+}

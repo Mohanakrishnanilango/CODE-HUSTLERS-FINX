@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch Fleet Survey — GhostNet SSS Sentinel</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: { 950: '#020b18', 900: '#041e42', 800: '#0a326c', 700: '#11448b', 600: '#1b5bb5' },
+            ocean: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0284c7', 600: '#0369a1', accent: '#00C4CC' },
+            cyan: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            heading: ['"Montserrat"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *{scrollbar-width:thin;scrollbar-color:#1e293b #0b1120}
+    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0b1120}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
+    body{background:#060a14;transition:background-color 0.3s ease, color 0.3s ease}
+    .card{background:rgba(15,23,42,0.85);border:1px solid rgba(30,41,59,0.7);backdrop-filter:blur(12px)}
+    .glow-red{box-shadow:0 0 25px rgba(244,63,94,0.35),inset 0 1px 0 rgba(244,63,94,0.15);border-color:rgba(244,63,94,0.5)!important}
+    .glow-amber{box-shadow:0 0 20px rgba(245,158,11,0.25);border-color:rgba(245,158,11,0.4)!important}
+    .glow-green{box-shadow:0 0 15px rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.3)!important}
+    .glow-cyan{box-shadow:0 0 20px rgba(6,182,212,0.2)}
+    .highlight-card{animation:highlightPulse 2s ease-in-out infinite}
+    @keyframes highlightPulse{0%,100%{box-shadow:0 0 20px rgba(244,63,94,0.3)}50%{box-shadow:0 0 35px rgba(244,63,94,0.5)}}
+    .fade-in{animation:fadeIn .4s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .btn-primary{background:linear-gradient(135deg,#0284c7,#06b6d4);transition:all .2s}
+    .btn-primary:hover{filter:brightness(1.15);box-shadow:0 4px 20px rgba(6,182,212,0.4)}
+    .btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none;box-shadow:none}
+    .progress-fill{transition:width .5s ease}
+    #map, #fleetMap, #modalMap { z-index: 1; }
+    .leaflet-container {
+      background: #08101E !important;
+      font-family: inherit;
+    }
+    html.dark .leaflet-tile {
+      filter: invert(100%) hue-rotate(185deg) brightness(85%) contrast(120%) saturate(75%);
+    }
+    html.light .leaflet-tile {
+      filter: none;
+    }
+    html.light .leaflet-container {
+      background: #f8fafc !important;
+    }
+    html.dark .leaflet-popup-content-wrapper {
+      background: #0B132B !important;
+      color: #F1F5F9 !important;
+      border: 1px solid #1C2541 !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 240, 255, 0.25) !important;
+      border-radius: 0.5rem !important;
+    }
+    html.dark .leaflet-popup-tip {
+      background: #0B132B !important;
+      border: 1px solid #1C2541 !important;
+    }
+    html.dark .leaflet-popup-close-button {
+      color: #94A3B8 !important;
+    }
+    html.light .leaflet-popup-content-wrapper {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+      border-radius: 0.5rem !important;
+    }
+    html.light .leaflet-popup-tip {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    .custom-sonar-marker {
+      background: transparent !important;
+      border: none !important;
+    }
+    @keyframes sonar-ping {
+      0% { transform: scale(1); opacity: 0.8; }
+      75%, 100% { transform: scale(2.2); opacity: 0; }
+    }
+    .sonar-ping-active {
+      animation: sonar-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .img-thumb{position:relative;overflow:hidden}
+
+    .img-thumb img{transition:transform .3s}
+    .img-thumb:hover img{transform:scale(1.05)}
+    .priority-stripe{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:9999px 0 0 9999px}
+    .drop-active{border-color:#06b6d4!important;background:rgba(6,182,212,0.05)!important}
+
+    /* Light Theme Styling for Batch Mode */
+    html.light body {
+      background: radial-gradient(circle at 50% 0%, #e0f2fe 0%, #f1f7fa 40%, #f8fafc 100%);
+      color: #1e293b;
+    }
+    html.light .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      backdrop-filter: none;
+      box-shadow: 0 4px 20px -2px rgba(4, 30, 66, 0.06);
+      color: #1e293b;
+    }
+    html.light header {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 2px 10px rgba(4, 30, 66, 0.04);
+    }
+    html.light .bg-navy-900\/95 { background: rgba(255, 255, 255, 0.95) !important; }
+    html.light .bg-slate-950\/60,
+    html.light .bg-slate-900 {
+      background: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #1e293b !important;
+    }
+    html.light .bg-slate-800\/60,
+    html.light .bg-slate-800 {
+      background: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+      color: #334155 !important;
+    }
+    html.light input,
+    html.light select {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    html.light .border-slate-800,
+    html.light .border-slate-700 {
+      border-color: #e2e8f0 !important;
+    }
+    html.light .text-slate-100,
+    html.light .text-slate-200 {
+      color: #041e42 !important;
+    }
+    html.light .text-slate-300 {
+      color: #1e293b !important;
+    }
+    html.light .text-slate-400 {
+      color: #475569 !important;
+    }
+    html.light .text-slate-500 {
+      color: #64748b !important;
+    }
+    html.light .leaflet-container {
+      background: #f8fafc !important;
+    }
+    html.light #drop-zone {
+      background-color: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+    }
+    html.light * {
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+  <!-- Header -->
+  <header class="bg-navy-900/95 backdrop-blur-xl border-b border-slate-800/60 sticky top-0 z-40 px-6 py-3">
+    <div class="max-w-[1800px] mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <div class="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
+          <i data-lucide="radar" class="w-5 h-5 text-cyan-400"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-wider text-cyan-400 flex items-center gap-2">
+            GHOSTNET <span class="text-slate-500 font-light">BATCH ANALYSIS</span>
+          </h1>
+          <p class="text-[10px] text-slate-500">FLEET-SCALE SSS ACOUSTIC PROCESSING</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme"
+                class="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-cyan-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-1.5 shadow-sm">
+          <i id="theme-icon-sun" data-lucide="sun" class="w-3.5 h-3.5 hidden dark:inline"></i>
+          <i id="theme-icon-moon" data-lucide="moon" class="w-3.5 h-3.5 inline dark:hidden text-navy-900"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider hidden sm:inline" id="theme-text">Light</span>
+        </button>
+        <a href="/dashboard" class="text-[10px] text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 font-semibold">Single Image</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-[1800px] w-full mx-auto p-4 lg:p-6 flex flex-col gap-6">
+
+    <!-- Upload Section -->
+    <section id="upload-section" class="card rounded-2xl p-6">
+      <div class="flex flex-col lg:flex-row gap-6">
+
+        <!-- Drop Zone -->
+        <div class="flex-1 flex flex-col gap-3">
+          <div id="drop-zone"
+               class="border-2 border-dashed border-slate-700 hover:border-cyan-500/40 rounded-xl p-8 flex flex-col items-center justify-center gap-3 text-center cursor-pointer transition min-h-[190px]">
+            <input type="file" id="file-input" multiple accept="image/*,.tif,.tiff,.json,application/json" class="hidden">
+            <input type="file" id="json-input" multiple accept=".json,application/json" class="hidden">
+            <input type="file" id="folder-input" webkitdirectory class="hidden">
+            <div class="flex items-center gap-2">
+              <div class="p-3 bg-slate-800/80 rounded-2xl text-cyan-400">
+                <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+              </div>
+              <span class="text-slate-600 text-sm">+</span>
+              <div class="p-3 bg-slate-800/80 rounded-2xl text-emerald-400">
+                <i data-lucide="file-code" class="w-8 h-8"></i>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-slate-200 font-semibold">Drop SSS images & telemetry JSON files or folder here</p>
+              <p class="text-[11px] text-slate-500 mt-1">Automatic pairing when image name and JSON file name match, or when timestamps match</p>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-2 justify-center">
+              <button id="btn-select-files" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i data-lucide="image" class="w-3.5 h-3.5"></i> Select Images
+              </button>
+              <button id="btn-select-jsons" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i data-lucide="file-code" class="w-3.5 h-3.5"></i> Select JSONs
+              </button>
+              <button id="btn-select-folder" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px] font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i data-lucide="folder" class="w-3.5 h-3.5"></i> Select Folder
+              </button>
+              <button id="btn-survey-mission" class="px-3 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 text-[11px] font-semibold rounded-lg border border-cyan-700/60 transition flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i> Load Survey Mission (5 Pairs)
+              </button>
+            </div>
+          </div>
+
+          <!-- Uploaded SSS Imagery Preview Strip -->
+          <div id="upload-preview-strip" class="hidden card rounded-xl p-3 bg-slate-950/50 border border-slate-800/80 fade-in">
+            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-300 mb-2">
+              <span class="flex items-center gap-1.5"><i data-lucide="images" class="w-3.5 h-3.5 text-cyan-400"></i> Uploaded SSS Imagery (<span id="strip-count" class="text-cyan-400 font-bold">0</span>)</span>
+              <span class="text-[10px] text-slate-500 font-mono">Click thumbnail to inspect</span>
+            </div>
+            <div id="strip-items" class="flex items-center gap-2.5 overflow-x-auto py-1"></div>
+          </div>
+        </div>
+
+        <!-- Metadata + Actions -->
+        <div class="lg:w-88 flex flex-col gap-4">
+          <div class="flex flex-col gap-2 text-[11px]">
+            <div class="flex items-center justify-between text-slate-300 font-medium">
+              <span class="flex items-center gap-1.5"><i data-lucide="satellite" class="w-3 h-3 text-cyan-400"></i> Telemetry GPS Georeferencing</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-600/50 text-emerald-300 font-mono">From JSON Files</span>
+            </div>
+            <p class="text-[10px] text-slate-400">WGS84 GPS coordinates are resolved automatically from paired telemetry JSON files for each ping image.</p>
+            <div class="grid grid-cols-2 gap-2 mt-0.5">
+              <div><label class="block text-slate-500 mb-0.5">Heading (deg)</label><input type="number" step="any" id="meta-heading" placeholder="Auto from JSON" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]"></div>
+              <div><label class="block text-slate-500 mb-0.5">Resolution (m/px)</label><input type="number" step="any" id="meta-res" value="0.10" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px]"></div>
+            </div>
+          </div>
+
+          <!-- File Queue -->
+          <div class="flex-1 min-h-0">
+            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-2">
+              <span class="font-semibold">Queue: <span id="queue-count" class="text-cyan-400 font-bold">0</span> images, <span id="queue-json-count" class="text-emerald-400 font-bold">0</span> JSONs (<span id="queue-matched-count" class="text-emerald-300 font-bold">0</span> paired)</span>
+              <button id="btn-clear" class="text-slate-500 hover:text-rose-400 transition">Clear All</button>
+            </div>
+            <div id="file-queue" class="max-h-40 overflow-y-auto flex flex-col gap-1 text-[10px]">
+              <div class="text-slate-600 text-center py-4">No files selected</div>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          <div id="progress-section" class="hidden">
+            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+              <span id="progress-text">Processing...</span>
+              <span id="progress-pct">0%</span>
+            </div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full progress-fill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Detection Mode Selection -->
+          <div class="mb-1">
+            <label class="block text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-1">Analysis Mode</label>
+            <select id="detector-select" class="w-full bg-slate-950/60 border border-slate-800 rounded px-2.5 py-2 text-slate-200 focus:border-cyan-500 focus:outline-none text-[11px] font-semibold">
+              <option value="unet" selected>High-Resolution Pixel Segmentation</option>
+              <option value="dual_yolo">Dual-Stage Consensus Voting</option>
+              <option value="hybrid">Hybrid Consensus Ensemble</option>
+              <option value="mock">Simulation Mode (Dev / Test)</option>
+            </select>
+          </div>
+
+          <!-- Analyze Button -->
+          <button id="btn-analyze" class="btn-primary w-full text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-cyan-900/30 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i data-lucide="scan-search" class="w-4 h-4"></i>
+            <span id="btn-analyze-text">Analyze All (Select Images First)</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section id="stats-bar" class="hidden grid grid-cols-2 md:grid-cols-6 gap-3 fade-in">
+      <div class="card rounded-xl p-3 glow-cyan"><div class="text-[9px] text-slate-500 uppercase">Total Images</div><div class="text-xl font-bold font-mono text-cyan-400" id="s-total">0</div></div>
+      <div class="card rounded-xl p-3"><div class="text-[9px] text-slate-500 uppercase">Processed</div><div class="text-xl font-bold font-mono text-emerald-400" id="s-processed">0</div></div>
+      <div class="card rounded-xl p-3"><div class="text-[9px] text-slate-500 uppercase">Failed</div><div class="text-xl font-bold font-mono text-rose-400" id="s-failed">0</div></div>
+      <div class="card rounded-xl p-3 glow-red"><div class="text-[9px] text-slate-500 uppercase">HIGH Priority</div><div class="text-xl font-bold font-mono text-rose-400" id="s-high">0</div></div>
+      <div class="card rounded-xl p-3 glow-amber"><div class="text-[9px] text-slate-500 uppercase">MEDIUM</div><div class="text-xl font-bold font-mono text-amber-400" id="s-medium">0</div></div>
+      <div class="card rounded-xl p-3 glow-green"><div class="text-[9px] text-slate-500 uppercase">LOW</div><div class="text-xl font-bold font-mono text-emerald-400" id="s-low">0</div></div>
+    </section>
+
+    <!-- Filter Tabs -->
+    <section id="filter-section" class="hidden flex items-center gap-2 fade-in">
+      <span class="text-[10px] text-slate-500 mr-2">FILTER:</span>
+      <button class="filter-tab tab-active px-3 py-1.5 rounded-lg text-[10px] font-semibold transition" data-filter="all">All (<span id="f-all">0</span>)</button>
+      <button class="filter-tab px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 transition" data-filter="HIGH">HIGH (<span id="f-high">0</span>)</button>
+      <button class="filter-tab px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 transition" data-filter="MEDIUM">MEDIUM (<span id="f-medium">0</span>)</button>
+      <button class="filter-tab px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 transition" data-filter="LOW">LOW (<span id="f-low">0</span>)</button>
+      <button class="filter-tab px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 transition" data-filter="CLEAN">CLEAN (<span id="f-clean">0</span>)</button>
+    </section>
+
+    <!-- Results Grid -->
+    <section id="results-section" class="hidden fade-in">
+      <!-- Fleet Mission Survey Map (SonarMap) -->
+      <div id="fleet-map-card" class="card rounded-2xl p-5 shadow-lg space-y-3.5 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/80">
+          <div>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+              Fleet Georeferenced Survey Mission & Route Map
+            </h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-400">
+              OpenStreetMap Tiles | Towfish Flight Route & Multi-Swath Georeferenced Detections
+            </p>
+          </div>
+          <div class="flex items-center gap-2.5 text-xs">
+            <div class="flex items-center gap-1.5 font-mono text-slate-300">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span id="fleet-map-target-count" class="font-semibold text-cyan-300">0 Survey Waypoints</span>
+            </div>
+            <div class="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700 font-mono">
+              WGS 84 Route
+            </div>
+          </div>
+        </div>
+
+        <!-- Survey Route Telemetry Summary Banner -->
+        <div id="route-summary-banner" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-950/80 border border-cyan-800/40 text-[11px] font-mono">
+          <div class="flex flex-col">
+            <span class="text-slate-500 text-[10px] uppercase">Route Distance</span>
+            <span id="route-dist" class="text-cyan-400 font-bold text-sm">0.00 km</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-slate-500 text-[10px] uppercase">Survey Waypoints</span>
+            <span id="route-wpts" class="text-emerald-400 font-bold text-sm">0 points</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-slate-500 text-[10px] uppercase">Mission Start</span>
+            <span id="route-start" class="text-slate-300 truncate text-[10px]">-</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-slate-500 text-[10px] uppercase">Mission End</span>
+            <span id="route-end" class="text-slate-300 truncate text-[10px]">-</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-[10px] font-mono">
+          <span class="text-slate-400 font-semibold flex items-center gap-1 mr-1">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i> Map Layers:
+          </span>
+          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300">
+            <span class="w-3 h-0.5 border-t-2 border-dashed border-cyan-400"></span>
+            <span>Survey Route</span>
+          </div>
+          <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/30">
+            <span class="w-2 h-2 rounded-full" style="background-color: #FF3366"></span>
+            <span class="text-rose-300 text-[10px]">High Priority</span>
+          </div>
+          <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+            <span class="w-2 h-2 rounded-full" style="background-color: #FFB800"></span>
+            <span class="text-amber-300 text-[10px]">Medium Priority</span>
+          </div>
+          <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+            <span class="w-2 h-2 rounded-full" style="background-color: #00FF66"></span>
+            <span class="text-emerald-300 text-[10px]">Low Priority</span>
+          </div>
+          <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">
+            <span class="w-2 h-2 rounded-full" style="background-color: #64748b"></span>
+            <span class="text-slate-300 text-[10px]">Clean Waypoint</span>
+          </div>
+        </div>
+
+        <div class="h-[380px] w-full rounded-lg overflow-hidden border border-slate-700/80 relative shadow-inner">
+          <div id="fleetMap" class="h-full w-full"></div>
+          <!-- Empty / Waiting State Overlay for Fleet Map -->
+          <div id="fleet-map-empty-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-[500] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300 hidden">
+            <div class="p-3 bg-cyan-500/10 rounded-full border border-cyan-500/20 mb-3 text-cyan-400">
+              <i data-lucide="compass" class="w-8 h-8"></i>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-200 mb-1">Awaiting Georeferenced Survey Imagery</h4>
+            <p class="text-xs text-slate-400 max-w-md mb-4 leading-relaxed">
+              Upload or pair telemetry JSON files containing WGS84 coordinates to view live towfish flight paths and georeferenced anomaly markers, or load the multi-ping survey mission dataset.
+            </p>
+            <button onclick="document.getElementById('btn-survey-mission').click()" class="px-3.5 py-2 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition flex items-center gap-2 shadow-lg glow-cyan">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              Load 5-Ping Survey Mission
+            </button>
+          </div>
+        </div>
+
+        <div class="text-[10px] sm:text-[11px] font-mono text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+          <span class="flex items-center gap-1.5 text-slate-300">
+            <i data-lucide="navigation-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Click any mission marker to inspect diagnostic imagery and full multi-channel telemetry.
+          </span>
+          <span class="text-slate-400 text-right">
+            Datum: <strong class="text-cyan-400 font-semibold">WGS 84</strong>
+          </span>
+        </div>
+      </div>
+
+      <div id="results-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+    </section>
+
+
+    <!-- Empty State -->
+    <section id="empty-state" class="flex flex-col items-center justify-center py-20 text-center gap-4">
+      <div class="p-5 bg-cyan-500/5 rounded-full border border-cyan-500/10 text-cyan-400/30">
+        <i data-lucide="layers" class="w-16 h-16"></i>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold text-slate-300">No Images Processed</h3>
+        <p class="text-[11px] text-slate-500 max-w-sm mt-1">Upload multiple SSS sonar images or a folder to batch-analyze and rank artificial objects by priority.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Detail Modal -->
+  <div id="modal-overlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal()">
+    <div class="bg-navy-900 border border-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="sticky top-0 bg-navy-900/95 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between z-10">
+        <h3 class="text-sm font-semibold text-slate-200" id="modal-title">Detection Detail</h3>
+        <button onclick="closeModal()" class="p-1.5 hover:bg-slate-800 rounded-lg transition"><i data-lucide="x" class="w-4 h-4 text-slate-400"></i></button>
+      </div>
+      <div id="modal-body" class="p-6"></div>
+    </div>
+  </div>
+
+  <footer class="border-t border-slate-800/40 py-3 text-center text-[9px] text-slate-600 font-mono tracking-wide mt-4">
+    SIH 2026 &mdash; GHOST NET BATCH DETECTION &mdash; SIDE-SCAN SONAR IMAGERY
+  </footer>
+
+  <script>
+  lucide.createIcons();
+
+  let selectedImages = [];
+  let selectedJsons = [];
+  let jsonCache = new Map(); // filename -> parsed JSON
+  let batchResults = null;
+  let currentFilter = 'all';
+  let chartInstances = {};
+
+  // --- Drop Zone & Inputs ---
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const jsonInput = document.getElementById('json-input');
+  const folderInput = document.getElementById('folder-input');
+
+  dropZone.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    fileInput.click();
+  });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drop-active'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-active'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drop-active');
+    const items = e.dataTransfer.items;
+    if (items) {
+      const allFiles = [];
+      const entries = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry?.();
+        if (entry) entries.push(entry);
+      }
+      if (entries.length > 0) {
+        readEntriesRecursive(entries, allFiles).then(() => addFiles(allFiles));
+        return;
+      }
+    }
+    addFiles(Array.from(e.dataTransfer.files));
+  });
+
+  function readEntriesRecursive(entries, allFiles) {
+    return Promise.all(entries.map(entry => {
+      if (entry.isFile) {
+        return new Promise(resolve => {
+          entry.file(f => { allFiles.push(f); resolve(); });
+        });
+      } else if (entry.isDirectory) {
+        return new Promise(resolve => {
+          const reader = entry.createReader();
+          const readBatch = () => {
+            reader.readEntries(async batch => {
+              if (batch.length === 0) { resolve(); return; }
+              await readEntriesRecursive(batch, allFiles);
+              readBatch();
+            });
+          };
+          readBatch();
+        });
+      }
+    }));
+  }
+
+  document.getElementById('btn-select-files').addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+  document.getElementById('btn-select-jsons').addEventListener('click', e => { e.stopPropagation(); jsonInput.click(); });
+  document.getElementById('btn-select-folder').addEventListener('click', e => { e.stopPropagation(); folderInput.click(); });
+  fileInput.addEventListener('change', () => addFiles(Array.from(fileInput.files)));
+  jsonInput.addEventListener('change', () => addFiles(Array.from(jsonInput.files)));
+  folderInput.addEventListener('change', () => addFiles(Array.from(folderInput.files)));
+
+  function cleanStemName(fname) {
+    return fname.replace(/\.[^/.]+$/, '').replace(/[-_](meta|telemetry|nav|metadata|gps)$/i, '').toLowerCase();
+  }
+
+  function extractTimestampFromStr(s) {
+    if (!s) return null;
+    const mIso = s.match(/(\d{4}-\d{2}-\d{2}[T_\s]\d{2}[-_:]?\d{2}[-_:]?\d{2})/i);
+    if (mIso) return mIso[1].replace(/[-_:]/g, '').replace(/[T\s]/g, '');
+    const mComp = s.match(/(\d{4}\d{2}\d{2}[-_]\d{2}\d{2}\d{2})/);
+    if (mComp) return mComp[1].replace(/[-_]/g, '');
+    return null;
+  }
+
+  function findValueInObjRecursive(obj, keys, maxDepth = 4) {
+    if (!obj || typeof obj !== 'object' || maxDepth <= 0) return null;
+    for (const k of keys) {
+      if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
+        return obj[k];
+      }
+    }
+    const priorityContainers = ['navigation', 'nav', 'sonar', 'telemetry', 'gps', 'location', 'position', 'geometry', 'properties', 'vehicle', 'auv', 'state', 'survey'];
+    for (const cont of priorityContainers) {
+      if (obj[cont] && typeof obj[cont] === 'object') {
+        const found = findValueInObjRecursive(obj[cont], keys, maxDepth - 1);
+        if (found !== null && found !== undefined) return found;
+      }
+    }
+    for (const [k, v] of Object.entries(obj)) {
+      if (!priorityContainers.includes(k) && v && typeof v === 'object') {
+        const found = findValueInObjRecursive(v, keys, maxDepth - 1);
+        if (found !== null && found !== undefined) return found;
+      }
+    }
+    return null;
+  }
+
+  function extractCoordsFromData(data) {
+    if (!data) return { lat: null, lon: null };
+    const target = Array.isArray(data) ? data[0] : (data.pings ? data.pings[0] : (data.features ? (data.features[0].properties || data.features[0]) : data));
+    if (!target || typeof target !== 'object') return { lat: null, lon: null };
+
+    const latKeys = ['latitude', 'lat', 'survey_latitude', 'survey_lat', 'lat_deg', 'lat_dd', 'y'];
+    const lonKeys = ['longitude', 'lon', 'lng', 'survey_longitude', 'survey_lon', 'lon_deg', 'lon_dd', 'x'];
+
+    let rawLat = findValueInObjRecursive(target, latKeys);
+    let rawLon = findValueInObjRecursive(target, lonKeys);
+
+    let lat = rawLat != null ? parseFloat(rawLat) : null;
+    let lon = rawLon != null ? parseFloat(rawLon) : null;
+
+    if (isNaN(lat)) lat = null;
+    if (isNaN(lon)) lon = null;
+
+    if (lat == null || lon == null) {
+      const coords = findValueInObjRecursive(target, ['coordinates', 'location', 'position', 'coords']);
+      if (Array.isArray(coords) && coords.length >= 2) {
+        const v0 = parseFloat(coords[0]);
+        const v1 = parseFloat(coords[1]);
+        if (!isNaN(v0) && !isNaN(v1)) {
+          if (Math.abs(v0) > 90 && Math.abs(v1) <= 90) {
+            lon = v0; lat = v1;
+          } else if (Math.abs(v1) > 90 && Math.abs(v0) <= 90) {
+            lat = v0; lon = v1;
+          } else {
+            if (target.type === 'Point' || (target.geometry && target.geometry.type === 'Point')) {
+              lon = v0; lat = v1;
+            } else {
+              lat = v0; lon = v1;
+            }
+          }
+        }
+      }
+    }
+    return {
+      lat: lat != null ? parseFloat(lat) : null,
+      lon: lon != null ? parseFloat(lon) : null
+    };
+  }
+
+  function findMatchForImage(imgFile) {
+    const imgStem = cleanStemName(imgFile.name);
+    const imgTs = extractTimestampFromStr(imgFile.name);
+
+    for (const jsonFile of selectedJsons) {
+      const parsed = jsonCache.get(jsonFile.name);
+      if (parsed) {
+        const records = Array.isArray(parsed) ? parsed : (parsed.pings || parsed.records || parsed.surveys || parsed.items || [parsed]);
+        const recordMatch = records.find(r => {
+          const rImg = findValueInObjRecursive(r, ['image_id', 'image', 'image_filename', 'filename', 'image_name', 'file', 'img', 'name', 'ping_id']);
+          return rImg && (String(rImg).toLowerCase() === imgFile.name.toLowerCase() || cleanStemName(String(rImg)) === imgStem);
+        });
+        if (recordMatch) {
+          const coords = extractCoordsFromData(recordMatch);
+          return { matched: true, jsonFile, lat: coords.lat, lon: coords.lon, rule: 'JSON Image ID' };
+        }
+      }
+
+      // Filename stem match
+      const jsonStem = cleanStemName(jsonFile.name);
+      if (imgStem === jsonStem) {
+        const coords = extractCoordsFromData(parsed);
+        return { matched: true, jsonFile, lat: coords.lat, lon: coords.lon, rule: 'Filename Match' };
+      }
+
+      // Timestamp match
+      const parsedTs = parsed ? findValueInObjRecursive(parsed, ['timestamp_utc', 'timestamp', 'acquisition_timestamp', 'time', 'time_utc', 'date_time', 'datetime']) : null;
+      const jsonTs = extractTimestampFromStr(jsonFile.name) || (parsedTs ? extractTimestampFromStr(String(parsedTs)) : null);
+      if (imgTs && jsonTs && imgTs === jsonTs) {
+        const coords = extractCoordsFromData(parsed);
+        return { matched: true, jsonFile, lat: coords.lat, lon: coords.lon, rule: 'Timestamp Match' };
+      }
+    }
+
+    // Positional fallback if counts match
+    const imgIdx = selectedImages.indexOf(imgFile);
+    if (selectedJsons.length === selectedImages.length && imgIdx >= 0 && imgIdx < selectedJsons.length) {
+      const jf = selectedJsons[imgIdx];
+      const parsed = jsonCache.get(jf.name);
+      const coords = extractCoordsFromData(parsed);
+      return { matched: true, jsonFile: jf, lat: coords.lat, lon: coords.lon, rule: 'Positional Match' };
+    } else if (selectedJsons.length === 1) {
+      const jf = selectedJsons[0];
+      const parsed = jsonCache.get(jf.name);
+      const coords = extractCoordsFromData(parsed);
+      return { matched: true, jsonFile: jf, lat: coords.lat, lon: coords.lon, rule: 'Single Telemetry' };
+    }
+
+    return { matched: false, jsonFile: null, lat: null, lon: null, rule: 'No Telemetry JSON' };
+  }
+
+  async function addFiles(files) {
+    for (const f of files) {
+      const isJson = f.name.toLowerCase().endsWith('.json') || (f.type && f.type.includes('json'));
+      if (isJson) {
+        if (!selectedJsons.some(x => x.name === f.name)) {
+          selectedJsons.push(f);
+          try {
+            const txt = await f.text();
+            jsonCache.set(f.name, JSON.parse(txt));
+          } catch (e) {
+            console.warn('Could not parse JSON', f.name, e);
+          }
+        }
+      } else if (/\.(png|jpe?g|tiff?|bmp)$/i.test(f.name)) {
+        if (!selectedImages.some(x => x.name === f.name)) {
+          selectedImages.push(f);
+        }
+      }
+    }
+    renderQueue();
+  }
+
+  const imagePreviewUrls = new Map(); // File -> objectUrl
+  function getImagePreviewUrl(file) {
+    if (!imagePreviewUrls.has(file)) {
+      imagePreviewUrls.set(file, URL.createObjectURL(file));
+    }
+    return imagePreviewUrls.get(file);
+  }
+  function clearPreviewUrls() {
+    for (const url of imagePreviewUrls.values()) {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }
+    imagePreviewUrls.clear();
+  }
+
+  function renderQueue() {
+    const el = document.getElementById('file-queue');
+    const btn = document.getElementById('btn-analyze');
+    const btnText = document.getElementById('btn-analyze-text');
+    
+    let pairedCount = 0;
+    const matches = selectedImages.map(img => {
+      const match = findMatchForImage(img);
+      if (match.matched) pairedCount++;
+      return { img, match };
+    });
+
+    document.getElementById('queue-count').textContent = selectedImages.length;
+    document.getElementById('queue-json-count').textContent = selectedJsons.length;
+    document.getElementById('queue-matched-count').textContent = pairedCount;
+
+    // Render Uploaded SSS Imagery Preview Strip
+    const stripEl = document.getElementById('upload-preview-strip');
+    const stripItems = document.getElementById('strip-items');
+    const stripCount = document.getElementById('strip-count');
+    if (stripEl && stripItems) {
+      if (selectedImages.length > 0) {
+        stripEl.classList.remove('hidden');
+        if (stripCount) stripCount.textContent = selectedImages.length;
+        stripItems.innerHTML = selectedImages.map((img, idx) => {
+          const thumbUrl = getImagePreviewUrl(img);
+          const match = findMatchForImage(img);
+          const isPaired = match && match.matched;
+          return `
+            <div class="flex-shrink-0 flex flex-col items-center gap-1 group relative cursor-pointer" onclick="window.open('${thumbUrl}', '_blank')" title="Inspect full image: ${img.name}">
+              <div class="w-20 h-16 rounded-lg overflow-hidden border ${isPaired ? 'border-emerald-500/50 group-hover:border-emerald-400' : 'border-slate-700 group-hover:border-cyan-400'} bg-slate-900 transition shadow relative">
+                <img src="${thumbUrl}" alt="${img.name}" class="w-full h-full object-cover">
+                <span class="absolute bottom-1 right-1 px-1 py-0.2 rounded text-[8px] font-mono ${isPaired ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-600/50' : 'bg-slate-950/90 text-amber-400 border border-slate-700'}">
+                  ${isPaired ? 'GPS' : 'NO GPS'}
+                </span>
+              </div>
+              <span class="text-[9px] text-slate-300 group-hover:text-cyan-300 transition truncate max-w-[80px] font-mono text-center">${img.name}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        stripEl.classList.add('hidden');
+        stripItems.innerHTML = '';
+      }
+    }
+
+    const hasImages = selectedImages.length > 0;
+    btn.disabled = !hasImages;
+    if (btnText) {
+      btnText.textContent = hasImages
+        ? `Analyze All (${selectedImages.length} Image${selectedImages.length !== 1 ? 's' : ''}${pairedCount > 0 ? `, ${pairedCount} Paired` : ''})`
+        : 'Analyze All (Select Images First)';
+    }
+
+    if (!hasImages && selectedJsons.length === 0) {
+      el.innerHTML = '<div class="text-slate-600 text-center py-4">No files selected</div>';
+      return;
+    }
+
+    let html = '';
+    // Images with thumbnails and match status
+    matches.forEach((item, i) => {
+      const hasCoords = item.match.matched && item.match.lat != null && item.match.lon != null;
+      const coordStr = hasCoords ? ` (${item.match.lat.toFixed(4)}°, ${item.match.lon.toFixed(4)}°)` : '';
+      const badge = item.match.matched
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/70 border border-emerald-600/50 text-emerald-300 font-mono flex items-center gap-1"><i data-lucide="check-check" class="w-3 h-3 text-emerald-400"></i> ${item.match.jsonFile.name}${coordStr}</span>`
+        : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-amber-400/90 font-mono flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3 text-amber-400"></i> No Telemetry JSON</span>`;
+
+      const thumbUrl = getImagePreviewUrl(item.img);
+
+      html += `
+        <div class="flex items-center justify-between bg-slate-950/40 hover:bg-slate-900/50 rounded-lg px-2 py-1.5 border border-slate-800/50 transition gap-2">
+          <div class="flex items-center gap-2.5 min-w-0 pr-1">
+            <div class="w-10 h-10 rounded-md overflow-hidden bg-slate-900 border border-slate-700/80 flex-shrink-0 flex items-center justify-center relative cursor-pointer group" onclick="window.open('${thumbUrl}', '_blank')" title="View image">
+              <img src="${thumbUrl}" alt="${item.img.name}" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-cyan-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-cyan-300"></i>
+              </div>
+            </div>
+            <div class="flex flex-col min-w-0">
+              <span class="text-slate-200 font-medium truncate max-w-[140px] text-[11px]" title="${item.img.name}">${item.img.name}</span>
+              <div class="mt-0.5">${badge}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <span class="text-slate-500 text-[10px] font-mono">${(item.img.size/1024).toFixed(0)}KB</span>
+            <button onclick="removeImage(${i})" class="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 transition" title="Remove image"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+      `;
+    });
+
+    // Unmatched or standalone JSONs
+    if (selectedJsons.length > 0) {
+      selectedJsons.forEach((jsonFile, jIdx) => {
+        const isUsed = matches.some(m => m.match.matched && m.match.jsonFile.name === jsonFile.name);
+        if (!isUsed) {
+          html += `
+            <div class="flex items-center justify-between bg-emerald-950/20 rounded px-2 py-1 border border-emerald-800/30 text-[9px]">
+              <span class="text-emerald-400 font-mono truncate max-w-[170px] flex items-center gap-1">
+                <i data-lucide="file-code" class="w-3 h-3"></i> ${jsonFile.name} (Multi/Standalone)
+              </span>
+              <button onclick="removeJson(${jIdx})" class="text-slate-500 hover:text-rose-400 p-0.5"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>
+            </div>
+          `;
+        }
+      });
+    }
+
+    el.innerHTML = html;
+    lucide.createIcons();
+  }
+
+  function removeImage(i) {
+    const removed = selectedImages.splice(i, 1)[0];
+    if (removed && imagePreviewUrls.has(removed)) {
+      try { URL.revokeObjectURL(imagePreviewUrls.get(removed)); } catch (e) {}
+      imagePreviewUrls.delete(removed);
+    }
+    renderQueue();
+  }
+
+  function removeJson(i) {
+    const removed = selectedJsons.splice(i, 1)[0];
+    if (removed) jsonCache.delete(removed.name);
+    renderQueue();
+  }
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    selectedImages = [];
+    selectedJsons = [];
+    jsonCache.clear();
+    clearPreviewUrls();
+    renderQueue();
+    document.getElementById('btn-analyze').disabled = true;
+  });
+
+  // --- Load Route Survey (5 Real Image + JSON Pairs) ---
+  document.getElementById('btn-survey-mission').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-survey-mission');
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div> Loading...';
+    try {
+      selectedImages = [];
+      selectedJsons = [];
+      jsonCache.clear();
+
+      const pairs = [
+        { img: '/static/images/ping_0001.png', name: 'ping_0001.png', json: '/static/fixtures/route_demo/ping_0001.json', jname: 'ping_0001.json' },
+        { img: '/static/images/ping_0002.png', name: 'ping_0002.png', json: '/static/fixtures/route_demo/ping_0002.json', jname: 'ping_0002.json' },
+        { img: '/static/images/ping_0003.png', name: 'ping_0003.png', json: '/static/fixtures/route_demo/ping_0003.json', jname: 'ping_0003.json' },
+        { img: '/static/images/ping_0004.png', name: 'ping_0004.png', json: '/static/fixtures/route_demo/ping_0004.json', jname: 'ping_0004.json' },
+        { img: '/static/images/ping_0005.png', name: 'ping_0005.png', json: '/static/fixtures/route_demo/ping_0005.json', jname: 'ping_0005.json' }
+      ];
+
+      for (const p of pairs) {
+        const [imgRes, jsonRes] = await Promise.all([fetch(p.img), fetch(p.json)]);
+        const imgBlob = await imgRes.blob();
+        const jsonBlob = await jsonRes.blob();
+        selectedImages.push(new File([imgBlob], p.name, { type: 'image/png' }));
+        const jsonFile = new File([jsonBlob], p.jname, { type: 'application/json' });
+        selectedJsons.push(jsonFile);
+        const jsonText = await jsonFile.text();
+        jsonCache.set(p.jname, JSON.parse(jsonText));
+      }
+
+      renderQueue();
+    } catch (err) {
+      console.error('Route survey load failed:', err);
+      alert('Could not load survey pairs: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+      lucide.createIcons();
+    }
+  });
+
+  // --- Analyze ---
+  document.getElementById('btn-analyze').addEventListener('click', async () => {
+    if (!selectedImages.length) return;
+    const btn = document.getElementById('btn-analyze');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...';
+
+    const progressSec = document.getElementById('progress-section');
+    progressSec.classList.remove('hidden');
+    document.getElementById('empty-state').classList.add('hidden');
+
+    const fd = new FormData();
+    selectedImages.forEach(f => fd.append('files', f));
+    selectedJsons.forEach(f => {
+      fd.append('json_files', f);
+      fd.append('files', f);
+    });
+
+    if (selectedImages.length === 1 && selectedJsons.length > 0) {
+      const match0 = findMatchForImage(selectedImages[0]);
+      if (match0 && match0.matched && match0.lat != null && match0.lon != null) {
+        fd.append('latitude', match0.lat);
+        fd.append('longitude', match0.lon);
+      }
+    }
+
+    const optionalFields = { heading: 'meta-heading', resolution: 'meta-res' };
+    for (const [k, id] of Object.entries(optionalFields)) {
+      const el = document.getElementById(id);
+      if (el && el.value) fd.append(k, el.value);
+    }
+    fd.append('enable_visual_debug', 'true');
+    const modeChoice = document.getElementById('detector-select').value;
+    if (modeChoice) fd.append('detector_backend', modeChoice);
+
+    // Fake progress
+    let pct = 0;
+    const progInterval = setInterval(() => {
+      pct = Math.min(pct + Math.random() * 15, 90);
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('progress-pct').textContent = Math.round(pct) + '%';
+      document.getElementById('progress-text').textContent = `Processing image ${Math.min(Math.ceil(pct / 100 * selectedImages.length), selectedImages.length)} of ${selectedImages.length}...`;
+    }, 500);
+
+    try {
+      const r = await fetch('/api/detections/batch', { method: 'POST', body: fd });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Batch failed'); }
+      batchResults = await r.json();
+      renderResults();
+    } catch (e) {
+      alert('Error: ' + e.message);
+      document.getElementById('empty-state').classList.remove('hidden');
+    } finally {
+      clearInterval(progInterval);
+      document.getElementById('progress-bar').style.width = '100%';
+      document.getElementById('progress-pct').textContent = '100%';
+      document.getElementById('progress-text').textContent = 'Complete!';
+      setTimeout(() => progressSec.classList.add('hidden'), 1500);
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="scan-search" class="w-4 h-4"></i><span>Analyze All</span>';
+      lucide.createIcons();
+    }
+  });
+
+  // --- Render Results ---
+  function renderResults() {
+    if (!batchResults) return;
+
+    // Stats
+    document.getElementById('stats-bar').classList.remove('hidden');
+    document.getElementById('filter-section').classList.remove('hidden');
+    document.getElementById('results-section').classList.remove('hidden');
+
+    document.getElementById('s-total').textContent = batchResults.total_images;
+    document.getElementById('s-processed').textContent = batchResults.processed;
+    document.getElementById('s-failed').textContent = batchResults.failed;
+    document.getElementById('s-high').textContent = batchResults.high_priority_count;
+    document.getElementById('s-medium').textContent = batchResults.medium_priority_count;
+    document.getElementById('s-low').textContent = batchResults.low_priority_count;
+
+    document.getElementById('f-all').textContent = batchResults.results.length;
+    document.getElementById('f-high').textContent = batchResults.high_priority_count;
+    document.getElementById('f-medium').textContent = batchResults.medium_priority_count;
+    document.getElementById('f-low').textContent = batchResults.low_priority_count;
+    const cleanCount = batchResults.results.filter(r => (r.max_priority === 'NONE' || r.total_detections === 0) && !r.error).length;
+    const fClean = document.getElementById('f-clean');
+    if (fClean) fClean.textContent = cleanCount;
+
+    // Route summary banner
+    const routeBanner = document.getElementById('route-summary-banner');
+    if (batchResults.route_summary && batchResults.route_summary.total_waypoints > 0) {
+      routeBanner.classList.remove('hidden');
+      document.getElementById('route-dist').textContent = `${batchResults.route_summary.total_distance_km.toFixed(2)} km (${batchResults.route_summary.total_distance_m.toFixed(0)} m)`;
+      document.getElementById('route-wpts').textContent = `${batchResults.route_summary.total_waypoints} waypoints`;
+      document.getElementById('route-start').textContent = batchResults.route_summary.start_time || 'N/A';
+      document.getElementById('route-end').textContent = batchResults.route_summary.end_time || 'N/A';
+    } else if (batchResults.route && batchResults.route.length > 0) {
+      routeBanner.classList.remove('hidden');
+      document.getElementById('route-dist').textContent = '-';
+      document.getElementById('route-wpts').textContent = `${batchResults.route.length} waypoints`;
+      document.getElementById('route-start').textContent = batchResults.route[0].timestamp || 'N/A';
+      document.getElementById('route-end').textContent = batchResults.route[batchResults.route.length - 1].timestamp || 'N/A';
+    } else {
+      routeBanner.classList.add('hidden');
+    }
+
+    renderGrid();
+    renderFleetMap();
+  }
+
+
+  function renderGrid() {
+    const grid = document.getElementById('results-grid');
+    const filtered = currentFilter === 'all'
+      ? batchResults.results
+      : currentFilter === 'CLEAN'
+        ? batchResults.results.filter(r => (r.max_priority === 'NONE' || r.total_detections === 0) && !r.error)
+        : batchResults.results.filter(r => r.max_priority === currentFilter);
+
+    grid.innerHTML = filtered.map((r, idx) => {
+      const isHigh = r.max_priority === 'HIGH';
+      const isMedium = r.max_priority === 'MEDIUM';
+      const isClean = (r.max_priority === 'NONE' || r.total_detections === 0) && !r.error;
+      const isFailed = !!r.error;
+      const borderColor = isFailed ? 'border-slate-800' : isHigh ? 'border-rose-500/50' : isMedium ? 'border-amber-500/30' : isClean ? 'border-slate-800/80' : 'border-emerald-500/30';
+      const glowClass = isHigh ? 'glow-red highlight-card' : isMedium ? 'glow-amber' : '';
+      const stripeColor = isFailed ? 'bg-slate-600' : isHigh ? 'bg-rose-500' : isMedium ? 'bg-amber-500' : isClean ? 'bg-slate-700' : 'bg-emerald-500';
+      const prioBg = isFailed ? 'bg-slate-700 text-slate-300' : isHigh ? 'bg-rose-500 text-white' : isMedium ? 'bg-amber-500 text-slate-900' : isClean ? 'bg-slate-800 text-slate-300' : 'bg-emerald-500 text-slate-900';
+      const badgeLabel = isFailed ? 'ERR' : isClean ? 'CLEAN SEABED' : `ANOMALY (${r.max_priority})`;
+
+      const topDet = r.detections[0];
+      const origUrl = r.image_url || (r.image_id ? `/api/detections/images/${r.image_id}` : null);
+      const debugUrl = topDet?.debug_image_path ? `/api/detections/${topDet.detection_id}/debug-image` : null;
+      const displayUrl = debugUrl || origUrl;
+
+      return `
+        <div class="card rounded-xl overflow-hidden ${borderColor} ${glowClass} transition-all hover:brightness-110 cursor-pointer fade-in"
+             style="animation-delay:${idx * 50}ms"
+             onclick="openDetail(${batchResults.results.indexOf(r)})">
+          <div class="priority-stripe ${stripeColor}"></div>
+
+          <!-- Thumbnail -->
+          <div class="img-thumb h-40 bg-slate-950 flex items-center justify-center ml-1 relative overflow-hidden group">
+            ${displayUrl
+              ? `
+                <img src="${displayUrl}" alt="${r.filename}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; if('${origUrl}' && this.src !== '${origUrl}') this.src='${origUrl}';">
+                ${isClean ? `
+                  <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent p-2 flex items-center justify-between pointer-events-none">
+                    <span class="px-2 py-0.5 rounded bg-emerald-950/90 border border-emerald-600/60 text-emerald-300 text-[9px] font-mono flex items-center gap-1 backdrop-blur-sm shadow">
+                      <i data-lucide="shield-check" class="w-3 h-3 text-emerald-400"></i> Clean Seabed
+                    </span>
+                    <span class="text-[9px] text-slate-400 font-mono">Original SSS</span>
+                  </div>
+                ` : `
+                  <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-slate-950/80 border ${isHigh ? 'border-rose-500/50 text-rose-300' : isMedium ? 'border-amber-500/50 text-amber-300' : 'border-emerald-500/50 text-emerald-300'} text-[9px] font-mono backdrop-blur-sm">
+                    ${debugUrl ? 'Detection HUD' : 'Uploaded SSS'}
+                  </div>
+                `}
+              `
+              : isFailed
+                ? `<div class="text-slate-600 text-[10px] flex flex-col items-center gap-1"><i data-lucide="alert-circle" class="w-6 h-6 text-rose-500"></i>Failed</div>`
+                : `<div class="text-slate-600 text-[10px] flex flex-col items-center gap-1"><i data-lucide="image-off" class="w-6 h-6"></i>No Image</div>`
+            }
+          </div>
+
+          <!-- Info -->
+          <div class="p-3 ml-1">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] text-slate-300 font-semibold truncate max-w-[140px]" title="${r.filename}">${r.filename}</span>
+              <span class="px-1.5 py-0.5 text-[9px] font-bold rounded ${prioBg}">${badgeLabel}</span>
+            </div>
+
+            ${isFailed
+              ? `<p class="text-[10px] text-rose-400">${r.error}</p>`
+              : isClean
+                ? `
+                <div class="flex items-center justify-between text-[10px] mb-1">
+                  <span class="text-slate-500">Status</span>
+                  <span class="font-mono text-emerald-400 text-[10px] font-semibold">Clean (&le;50% skipped)</span>
+                </div>
+                <div class="h-1 bg-slate-800 rounded-full overflow-hidden mb-2">
+                  <div class="h-full bg-slate-700 rounded-full" style="width:0%"></div>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-500">
+                  <span>0 detections</span>
+                  <span>${r.image_dimensions[0]}x${r.image_dimensions[1]}</span>
+                </div>
+                `
+                : `
+                <div class="flex items-center justify-between text-[10px] mb-1">
+                  <span class="text-slate-500">Confidence</span>
+                  <span class="font-mono font-bold ${isHigh ? 'text-rose-400' : isMedium ? 'text-amber-400' : 'text-emerald-400'}">${(r.max_confidence * 100).toFixed(1)}%</span>
+                </div>
+                <div class="h-1 bg-slate-800 rounded-full overflow-hidden mb-2">
+                  <div class="h-full ${isHigh ? 'bg-rose-500' : isMedium ? 'bg-amber-500' : 'bg-emerald-500'} rounded-full" style="width:${r.max_confidence * 100}%"></div>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-500">
+                  <span>${r.total_detections} detection${r.total_detections !== 1 ? 's' : ''}</span>
+                  <span>${r.image_dimensions[0]}x${r.image_dimensions[1]}</span>
+                </div>
+                `
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    lucide.createIcons();
+  }
+
+  // --- Filter Tabs ---
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.classList.remove('tab-active');
+        t.classList.add('bg-slate-800/60', 'text-slate-300');
+      });
+      tab.classList.add('tab-active');
+      tab.classList.remove('bg-slate-800/60', 'text-slate-300');
+      currentFilter = tab.dataset.filter;
+      renderGrid();
+    });
+  });
+
+  // --- Detail Modal ---
+  function openDetail(idx) {
+    const r = batchResults.results[idx];
+    if (!r || r.error) return;
+
+    const overlay = document.getElementById('modal-overlay');
+    const body = document.getElementById('modal-body');
+    document.getElementById('modal-title').textContent = r.filename;
+
+    const topDet = r.detections[0];
+    const origUrl = r.image_url || (r.image_id ? `/api/detections/images/${r.image_id}` : null);
+    const debugUrl = topDet?.debug_image_path ? `/api/detections/${topDet.detection_id}/debug-image` : null;
+    const scores = topDet?.evidence_scores || {};
+    const isClean = (r.max_priority === 'NONE' || r.total_detections === 0) && !r.error;
+
+    window.currentModalDebugUrl = debugUrl;
+    window.currentModalOrigUrl = origUrl;
+
+    const initialImgSrc = debugUrl || origUrl || '';
+
+    body.innerHTML = `
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Image Viewer Container with Switcher -->
+        <div class="flex flex-col gap-2">
+          <!-- View Switcher -->
+          <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded-lg border border-slate-800 text-[11px]">
+            <div class="flex items-center gap-1.5">
+              ${debugUrl ? `
+              <button id="modal-tab-hud" onclick="switchModalView('hud')" class="px-2.5 py-1 rounded text-[10px] font-semibold transition bg-cyan-600 text-white flex items-center gap-1">
+                <i data-lucide="crosshair" class="w-3 h-3"></i> Detection HUD
+              </button>
+              ` : ''}
+              ${origUrl ? `
+              <button id="modal-tab-orig" onclick="switchModalView('orig')" class="px-2.5 py-1 rounded text-[10px] font-semibold transition ${debugUrl ? 'text-slate-400 hover:text-slate-200' : 'bg-cyan-600 text-white'} flex items-center gap-1">
+                <i data-lucide="image" class="w-3 h-3"></i> Original Sonar Image
+              </button>
+              ` : ''}
+            </div>
+            <a id="modal-img-full" href="${initialImgSrc || '#'}" target="_blank" class="text-[10px] text-cyan-400 hover:underline flex items-center gap-1 px-2 py-0.5">
+              <i data-lucide="maximize-2" class="w-3 h-3"></i> Full Size
+            </a>
+          </div>
+
+          <!-- Main Image Display Container -->
+          <div class="bg-black rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center min-h-[320px] max-h-[520px] relative">
+            ${initialImgSrc ? `
+              <img id="modal-main-img" src="${initialImgSrc}?t=${Date.now()}" class="max-h-[500px] w-auto object-contain transition-opacity duration-200" alt="${r.filename}">
+            ` : '<div class="text-slate-600 text-xs">No image available</div>'}
+            ${isClean ? `
+              <div class="absolute bottom-3 inset-x-3 p-2.5 rounded-lg bg-slate-950/85 border border-emerald-500/40 backdrop-blur-md flex items-center gap-2 text-emerald-300 text-[11px] shadow-lg">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                <span>Clean Seafloor Scan &mdash; Acoustic analysis found no anomalies exceeding the 50% confidence threshold.</span>
+              </div>
+            ` : ''}
+          </div>
+
+          ${debugUrl ? `
+          <div id="modal-legend" class="flex items-center gap-3 mt-1 text-[9px]">
+            <span class="flex items-center gap-1 text-yellow-400"><span class="w-2 h-2 rounded-sm bg-yellow-400"></span>BBox</span>
+            <span class="flex items-center gap-1 text-cyan-400"><span class="w-2 h-2 rounded-sm bg-cyan-400"></span>Anomaly</span>
+            <span class="flex items-center gap-1 text-rose-400"><span class="w-2 h-2 rounded-sm bg-rose-500"></span>Shadow</span>
+            <span class="flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-sm bg-emerald-500"></span>Context</span>
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- Details -->
+        <div class="flex flex-col gap-4">
+          <!-- Score Cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/60">
+              <div class="text-[9px] text-slate-500 uppercase">Confidence</div>
+              <div class="text-lg font-bold font-mono text-cyan-400">${(r.max_confidence * 100).toFixed(1)}%</div>
+            </div>
+            <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/60">
+              <div class="text-[9px] text-slate-500 uppercase">Classification</div>
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded ${
+                r.max_priority === 'HIGH' ? 'bg-rose-500 text-white' :
+                r.max_priority === 'MEDIUM' ? 'bg-amber-500 text-slate-900' :
+                (r.max_priority === 'NONE' || r.total_detections === 0) ? 'bg-slate-800 text-slate-300' :
+                'bg-emerald-500 text-slate-900'
+              }">${(r.max_priority === 'NONE' || r.total_detections === 0) ? 'CLEAN SEABED' : `ANOMALY (${r.max_priority})`}</span>
+            </div>
+            <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/60">
+              <div class="text-[9px] text-slate-500 uppercase">Detections</div>
+              <div class="text-lg font-bold font-mono text-purple-400">${r.total_detections}</div>
+            </div>
+          </div>
+
+          <!-- Bounding Box -->
+          ${topDet?.bbox ? `
+          <div class="bg-slate-950/60 rounded-lg p-2.5 px-3 border border-slate-800/60 flex items-center justify-between text-[11px]">
+            <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-sm bg-yellow-400"></span>
+              Primary Anomaly BBox
+            </span>
+            <span class="font-mono text-yellow-400 font-bold">[X: ${topDet.bbox[0]}, Y: ${topDet.bbox[1]}, W: ${topDet.bbox[2]}, H: ${topDet.bbox[3]}]</span>
+          </div>
+          ` : ''}
+
+          <!-- Evidence Bars -->
+          <div class="bg-slate-950/60 rounded-lg p-4 border border-slate-800/60">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-3 font-semibold">Evidence Breakdown</div>
+            <div class="space-y-2">
+              ${[
+                { name: 'Anomaly', score: topDet.anomaly_score, color: 'from-cyan-500 to-cyan-400', text: 'text-cyan-400' },
+                { name: 'Shape', score: scores.shape, color: 'from-blue-500 to-blue-400', text: 'text-blue-400' },
+                { name: 'Texture', score: scores.texture, color: 'from-purple-500 to-purple-400', text: 'text-purple-400' },
+                { name: 'Shadow', score: scores.shadow, color: 'from-rose-500 to-rose-400', text: 'text-rose-400' },
+                { name: 'Size', score: scores.size, color: 'from-amber-500 to-amber-400', text: 'text-amber-400' },
+                { name: 'Context', score: scores.context, color: 'from-emerald-500 to-emerald-400', text: 'text-emerald-400' },
+              ].map(m => {
+                const v = m.score != null ? `${(m.score*100).toFixed(1)}%` : 'N/A';
+                const w = m.score != null ? `${m.score*100}%` : '0%';
+                return `
+                  <div class="flex justify-between items-center text-[10px]">
+                    <span class="text-slate-400">${m.name}</span>
+                    <span class="font-mono ${m.text}">${v}</span>
+                  </div>
+                  <div class="h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+                    <div class="bg-gradient-to-r ${m.color} h-full rounded-full" style="width:${w}"></div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Radar -->
+          <div class="bg-slate-950/60 rounded-lg p-4 border border-slate-800/60">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2 font-semibold">Evidence Radar</div>
+            <div class="h-48"><canvas id="modalRadar"></canvas></div>
+          </div>
+
+          <!-- Survey Telemetry & Geolocation -->
+          ${(topDet?.geolocation?.available || (r.survey_latitude != null && r.survey_longitude != null)) ? `
+          <div class="bg-slate-950/60 rounded-lg p-4 border border-slate-800/60">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2 font-semibold flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><i data-lucide="navigation-2" class="w-3 h-3 text-cyan-400"></i> WGS84 Survey Telemetry & Pairing</span>
+              <span class="text-emerald-400 font-mono text-[9px]">${r.matched_by || 'Default'}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 font-mono text-[10px] mb-2 bg-slate-900/60 p-2 rounded border border-slate-800">
+              <div><span class="text-slate-500">JSON Source:</span> <span class="text-slate-200 truncate block">${r.matched_json_file || 'Form Default'}</span></div>
+              <div><span class="text-slate-500">Timestamp:</span> <span class="text-slate-200 block">${r.acquisition_timestamp || 'N/A'}</span></div>
+              <div><span class="text-slate-500">Latitude:</span> <span class="text-cyan-300 font-bold block">${(topDet?.geolocation?.latitude ?? r.survey_latitude).toFixed(6)}°</span></div>
+              <div><span class="text-slate-500">Longitude:</span> <span class="text-cyan-300 font-bold block">${(topDet?.geolocation?.longitude ?? r.survey_longitude).toFixed(6)}°</span></div>
+              ${r.route_point?.heading != null ? `<div><span class="text-slate-500">Heading:</span> <span class="text-slate-300 block">${r.route_point.heading.toFixed(1)}°</span></div>` : ''}
+              ${r.route_point?.altitude != null ? `<div><span class="text-slate-500">Altitude:</span> <span class="text-slate-300 block">${r.route_point.altitude.toFixed(1)} m</span></div>` : ''}
+              ${r.route_point?.leg_distance_m != null ? `<div><span class="text-slate-500">Leg Distance:</span> <span class="text-slate-300 block">${r.route_point.leg_distance_m.toFixed(1)} m</span></div>` : ''}
+              ${r.route_point?.cumulative_distance_m != null ? `<div><span class="text-slate-500">Cumulative:</span> <span class="text-slate-300 block">${(r.route_point.cumulative_distance_m/1000).toFixed(2)} km</span></div>` : ''}
+            </div>
+            <div id="modalMap" class="h-40 rounded-lg overflow-hidden border border-slate-800"></div>
+          </div>
+          ` : ''}
+
+          <!-- All Detections Table -->
+          ${r.detections.length > 1 ? `
+          <div class="bg-slate-950/60 rounded-lg p-4 border border-slate-800/60">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2 font-semibold">All Detections (${r.detections.length})</div>
+            <div class="space-y-1 max-h-32 overflow-y-auto">
+              ${r.detections.map((d, i) => `
+                <div class="flex items-center justify-between text-[10px] py-1 border-b border-slate-800/40">
+                  <span class="text-slate-400">#${i+1} ${d.region_id}</span>
+                  <span class="font-mono ${d.priority === 'HIGH' ? 'text-rose-400' : d.priority === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}">${(d.confidence_percentage).toFixed(1)}% ${d.priority}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <a href="/api/detections/${topDet?.detection_id || ''}/report?format=markdown" target="_blank"
+               class="flex-1 text-center px-3 py-2 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-900/50 rounded-lg text-[10px] text-cyan-400 font-semibold transition ${!topDet ? 'pointer-events-none opacity-50' : ''}">
+              Download Report
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    overlay.classList.remove('hidden');
+    lucide.createIcons();
+
+    // Radar
+    if (topDet) {
+      setTimeout(() => {
+        const ctx = document.getElementById('modalRadar');
+        if (!ctx) return;
+        const data = [topDet.anomaly_score||0, scores.shape||0, scores.texture||0, scores.shadow||0, scores.size||0, scores.context||0];
+        new Chart(ctx.getContext('2d'), {
+          type: 'radar',
+          data: {
+            labels: ['Anomaly','Shape','Texture','Shadow','Size','Context'],
+            datasets: [{ data, backgroundColor: 'rgba(6,182,212,0.15)', borderColor: 'rgba(6,182,212,0.8)', pointBackgroundColor: '#06b6d4', pointBorderColor: '#0b1120', pointBorderWidth: 2, borderWidth: 2, pointRadius: 4 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 1, ticks: { display: false }, grid: { color: 'rgba(148,163,184,0.08)' }, angleLines: { color: 'rgba(148,163,184,0.08)' }, pointLabels: { color: '#94a3b8', font: { size: 9 } } } }, plugins: { legend: { display: false } } }
+        });
+      }, 100);
+    }
+
+    // Modal Map
+    const mapLat = topDet?.geolocation?.available ? topDet.geolocation.latitude : r.survey_latitude;
+    const mapLon = topDet?.geolocation?.available ? topDet.geolocation.longitude : r.survey_longitude;
+    if (mapLat != null && mapLon != null) {
+      setTimeout(() => {
+        const isLight = document.documentElement.classList.contains('light');
+        const tileUrl = isLight 
+          ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const modalMapEl = document.getElementById('modalMap');
+        if (!modalMapEl) return;
+        const m = L.map('modalMap', { zoomControl: false, attributionControl: false }).setView([mapLat, mapLon], 14);
+        L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(m);
+
+        const color = topDet?.priority === 'HIGH' ? '#FF3366' : topDet?.priority === 'MEDIUM' ? '#FFB800' : (topDet?.priority === 'LOW' ? '#00FF66' : '#64748b');
+        const size = 32;
+        const iconHtml = `
+          <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: ${size + 14}px; height: ${size + 14}px; border-radius: 50%; border: 2px solid ${color}; opacity: 0.7;" class="sonar-ping-active"></div>
+            <div style="
+              width: ${size}px;
+              height: ${size}px;
+              border-radius: 50%;
+              background-color: #0B132B;
+              border: 2px solid ${color};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 12px ${color};
+            ">
+              <svg width="${size * 0.55}" height="${size * 0.55}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3.5" fill="${color}"></circle>
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+              </svg>
+            </div>
+          </div>
+        `;
+        const icon = L.divIcon({ className: 'custom-sonar-marker', html: iconHtml, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+        L.marker([mapLat, mapLon], { icon }).addTo(m);
+        setTimeout(() => m.invalidateSize(), 200);
+      }, 200);
+    }
+  }
+
+  // --- Fleet Mission Survey Map Implementation ---
+  let fleetMap = null;
+  let fleetMapMarkers = [];
+  let fleetTrackline = null;
+  let fleetLayers = [];
+  let fleetTileLayer = null;
+
+  function projectCoordinate(lat, lon, bearingDeg, distanceM) {
+    const R = 6371000;
+    const d = distanceM / R;
+    const rad = Math.PI / 180;
+    const θ = bearingDeg * rad;
+    const φ1 = lat * rad;
+    const λ1 = lon * rad;
+
+    const sinφ2 = Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(θ);
+    const φ2 = Math.asin(sinφ2);
+    const y = Math.sin(θ) * Math.sin(d) * Math.cos(φ1);
+    const x = Math.cos(d) - Math.sin(φ1) * sinφ2;
+    const λ2 = λ1 + Math.atan2(y, x);
+
+    return [φ2 / rad, λ2 / rad];
+  }
+
+  function initialBearing(lat1, lon1, lat2, lon2) {
+    const rad = Math.PI / 180;
+    const φ1 = lat1 * rad;
+    const φ2 = lat2 * rad;
+    const Δλ = (lon2 - lon1) * rad;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = Math.atan2(y, x);
+    return (θ / rad + 360) % 360;
+  }
+
+  function renderFleetMap() {
+    const card = document.getElementById('fleet-map-card');
+    const el = document.getElementById('fleetMap');
+    const countEl = document.getElementById('fleet-map-target-count');
+    if (!card || !el || !batchResults) return;
+
+    // Collect all detections with valid geolocation
+    const georeferenced = [];
+    batchResults.results.forEach((res, resIdx) => {
+      if (res.detections) {
+        res.detections.forEach(det => {
+          if (det.geolocation && det.geolocation.available && det.geolocation.latitude != null && det.geolocation.longitude != null) {
+            georeferenced.push({
+              det,
+              res,
+              resIdx,
+              lat: det.geolocation.latitude,
+              lon: det.geolocation.longitude
+            });
+          }
+        });
+      }
+    });
+
+    card.classList.remove('hidden');
+    const overlay = document.getElementById('fleet-map-empty-overlay');
+
+    let waypoints = Array.isArray(batchResults.route) ? [...batchResults.route] : [];
+    if (waypoints.length === 0 && batchResults.results) {
+      batchResults.results.forEach((r, rIdx) => {
+        if (r.survey_latitude != null && r.survey_longitude != null) {
+          waypoints.push({
+            waypoint_index: rIdx + 1,
+            image_id: r.image_id,
+            filename: r.filename,
+            timestamp: r.acquisition_timestamp,
+            latitude: r.survey_latitude,
+            longitude: r.survey_longitude,
+            heading: r.heading || 0,
+            altitude: r.altitude,
+            total_detections: r.total_detections || 0,
+            max_priority: r.max_priority || 'NONE',
+            max_confidence: r.max_confidence || 0,
+            matched_by: r.matched_by,
+            matched_json_file: r.matched_json_file
+          });
+        }
+      });
+    }
+
+    const hasRoute = waypoints.length > 0;
+
+    const isLight = document.documentElement.classList.contains('light');
+    const tileUrl = isLight 
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    if (!fleetMap) {
+      fleetMap = L.map('fleetMap', { zoomControl: true, attributionControl: true }).setView([9.9520, 76.1250], 13);
+      fleetTileLayer = L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(fleetMap);
+    } else if (fleetTileLayer) {
+      fleetTileLayer.setUrl(tileUrl);
+    }
+
+    // Clear old markers, trackline and layer groups
+    fleetMapMarkers.forEach(m => fleetMap.removeLayer(m));
+    fleetMapMarkers = [];
+    if (fleetTrackline) {
+      fleetMap.removeLayer(fleetTrackline);
+      fleetTrackline = null;
+    }
+    if (fleetLayers && fleetLayers.length) {
+      fleetLayers.forEach(l => fleetMap.removeLayer(l));
+      fleetLayers = [];
+    }
+
+    if (!hasRoute && georeferenced.length === 0) {
+      if (overlay) overlay.classList.remove('hidden');
+      if (countEl) countEl.textContent = '0 Georeferenced Waypoints (Awaiting Telemetry JSON)';
+      setTimeout(() => fleetMap?.invalidateSize(), 150);
+      return;
+    }
+
+    if (overlay) overlay.classList.add('hidden');
+
+    const allPointsForBounds = [];
+
+    if (hasRoute) {
+      const distStr = batchResults.route_summary?.total_distance_km
+        ? ` · ${batchResults.route_summary.total_distance_km.toFixed(2)} km Route`
+        : '';
+      countEl.textContent = `${waypoints.length} Survey Waypoints${distStr} (Flight Path Active)`;
+
+      const coords = waypoints.map(w => [w.latitude, w.longitude]);
+      const isMultiPoint = coords.length > 1 && (
+        Math.abs(coords[0][0] - coords[coords.length - 1][0]) > 1e-5 ||
+        Math.abs(coords[0][1] - coords[coords.length - 1][1]) > 1e-5
+      );
+
+      if (isMultiPoint) {
+        // Draw connected multi-waypoint survey route polyline
+        fleetTrackline = L.polyline(coords, {
+          color: '#00F0FF',
+          weight: 4,
+          dashArray: '8, 6',
+          opacity: 0.9
+        }).addTo(fleetMap);
+        fleetLayers.push(fleetTrackline);
+        coords.forEach(c => allPointsForBounds.push(c));
+
+        // Add directional arrow indicators along legs
+        for (let i = 0; i < coords.length - 1; i++) {
+          const midLat = (coords[i][0] + coords[i + 1][0]) / 2;
+          const midLon = (coords[i][1] + coords[i + 1][1]) / 2;
+          const legBearing = initialBearing(coords[i][0], coords[i][1], coords[i + 1][0], coords[i + 1][1]);
+          const arrowIcon = L.divIcon({
+            className: 'route-arrow-marker',
+            html: `
+              <div style="transform: rotate(${legBearing}deg); display: flex; align-items: center; justify-content: center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#00F0FF" stroke="#00F0FF" stroke-width="2">
+                  <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+                </svg>
+              </div>
+            `,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+          });
+          const arrowMarker = L.marker([midLat, midLon], { icon: arrowIcon, interactive: false }).addTo(fleetMap);
+          fleetLayers.push(arrowMarker);
+        }
+      } else {
+        // Single waypoint or identical coordinates: Draw along-track flight line and swath corridor
+        const wpt = waypoints[0];
+        const heading = wpt.heading || 0;
+        const backPt = projectCoordinate(wpt.latitude, wpt.longitude, (heading + 180) % 360, 200);
+        const fwdPt = projectCoordinate(wpt.latitude, wpt.longitude, heading, 200);
+        const tracklineCoords = [backPt, [wpt.latitude, wpt.longitude], fwdPt];
+
+        fleetTrackline = L.polyline(tracklineCoords, {
+          color: '#00F0FF',
+          weight: 4,
+          dashArray: '8, 6',
+          opacity: 0.9
+        }).addTo(fleetMap);
+        fleetLayers.push(fleetTrackline);
+        tracklineCoords.forEach(c => allPointsForBounds.push(c));
+
+        // Swath corridor
+        const p1 = projectCoordinate(backPt[0], backPt[1], (heading - 90 + 360) % 360, 100);
+        const p2 = projectCoordinate(backPt[0], backPt[1], (heading + 90) % 360, 100);
+        const p3 = projectCoordinate(fwdPt[0], fwdPt[1], (heading + 90) % 360, 100);
+        const p4 = projectCoordinate(fwdPt[0], fwdPt[1], (heading - 90 + 360) % 360, 100);
+        const corridor = L.polygon([p1, p2, p3, p4], {
+          color: '#00F0FF',
+          weight: 1.5,
+          dashArray: '4, 4',
+          fillColor: '#00F0FF',
+          fillOpacity: 0.08
+        }).addTo(fleetMap);
+        fleetLayers.push(corridor);
+        [p1, p2, p3, p4].forEach(c => allPointsForBounds.push(c));
+      }
+
+      // Add waypoint markers
+      waypoints.forEach(wpt => {
+        const color = wpt.max_priority === 'HIGH'
+          ? '#FF3366'
+          : wpt.max_priority === 'MEDIUM'
+            ? '#FFB800'
+            : wpt.max_priority === 'LOW'
+              ? '#00FF66'
+              : '#64748b';
+
+        const size = 32;
+        const headingAngle = wpt.heading || 0;
+        const html = `
+          <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: ${size + 14}px; height: ${size + 14}px; border-radius: 50%; border: 2px solid ${color}; opacity: 0.6;" class="sonar-ping-active"></div>
+            <div style="
+              width: ${size}px;
+              height: ${size}px;
+              border-radius: 50%;
+              background-color: #0B132B;
+              border: 2px solid ${color};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 12px ${color};
+              cursor: pointer;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 11px;
+              font-weight: 700;
+              color: #ffffff;
+              transition: all 0.2s ease;
+            ">
+              ${wpt.waypoint_index}
+            </div>
+            ${wpt.heading != null ? `
+            <div style="position: absolute; top: -6px; transform: rotate(${headingAngle}deg); transform-origin: center 22px;">
+              <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 6px solid #00F0FF;"></div>
+            </div>` : ''}
+          </div>
+        `;
+
+        const icon = L.divIcon({
+          className: 'custom-sonar-marker',
+          html,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+          popupAnchor: [0, -size / 2]
+        });
+
+        const marker = L.marker([wpt.latitude, wpt.longitude], { icon }).addTo(fleetMap);
+        allPointsForBounds.push([wpt.latitude, wpt.longitude]);
+        const resIdx = batchResults.results.findIndex(r => r.filename === wpt.filename);
+
+        const prioBadge = wpt.max_priority === 'HIGH'
+          ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+          : wpt.max_priority === 'MEDIUM'
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+            : wpt.max_priority === 'LOW'
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              : 'bg-slate-800 text-slate-300 border-slate-700';
+
+        const popupHtml = `
+          <div class="p-1 font-mono text-xs space-y-1.5 min-w-[220px]">
+            <div class="border-b border-slate-700/60 pb-1 flex items-center justify-between">
+              <span class="font-bold text-white text-xs truncate max-w-[130px]">#${wpt.waypoint_index} ${wpt.filename}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-medium border ${prioBadge}">
+                ${wpt.max_priority === 'NONE' ? 'CLEAN' : wpt.max_priority}
+              </span>
+            </div>
+            <div class="space-y-0.5 text-slate-300 text-[11px]">
+              <div><strong class="text-slate-400">Telemetry: </strong><span class="text-emerald-400 font-bold">${wpt.matched_json_file || 'Form Default'} (${wpt.matched_by || 'Default'})</span></div>
+              ${wpt.timestamp ? `<div><strong class="text-slate-400">Timestamp: </strong><span class="text-slate-300 text-[10px]">${wpt.timestamp}</span></div>` : ''}
+              <div><strong class="text-slate-400">Position: </strong><span class="text-cyan-300 font-mono">${wpt.latitude.toFixed(6)}°, ${wpt.longitude.toFixed(6)}°</span></div>
+              ${wpt.heading != null ? `<div><strong class="text-slate-400">Heading: </strong><span class="text-slate-200">${wpt.heading.toFixed(1)}°</span></div>` : ''}
+              ${wpt.altitude != null ? `<div><strong class="text-slate-400">Altitude: </strong><span class="text-slate-200">${wpt.altitude.toFixed(1)} m</span></div>` : ''}
+              <div><strong class="text-slate-400">Confidence: </strong><span class="text-slate-200">${(wpt.max_confidence * 100).toFixed(1)}% (${wpt.total_detections} targets)</span></div>
+              <div><strong class="text-slate-400">Leg Distance: </strong><span class="text-slate-200">${wpt.leg_distance_m != null ? wpt.leg_distance_m.toFixed(1) + ' m' : '0 m'}</span></div>
+              <div><strong class="text-slate-400">Cumulative: </strong><span class="text-slate-200">${wpt.cumulative_distance_m != null ? (wpt.cumulative_distance_m / 1000).toFixed(2) + ' km' : '0 km'}</span></div>
+            </div>
+            ${resIdx >= 0 ? `
+            <div class="pt-1.5 border-t border-slate-800 text-[10px] text-cyan-400 flex items-center gap-1 cursor-pointer hover:underline" onclick="openDetail(${resIdx})">
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+              <span>Inspect Sonar Image & Telemetry</span>
+            </div>
+            ` : ''}
+          </div>
+        `;
+
+        marker.bindPopup(popupHtml);
+        fleetMapMarkers.push(marker);
+      });
+
+      // Add detection anomaly targets and offset lines connecting waypoints to targets
+      batchResults.results.forEach((res, resIdx) => {
+        if (res.detections && res.detections.length) {
+          const parentWpt = waypoints.find(w => w.filename === res.filename) || waypoints[resIdx];
+          res.detections.forEach(det => {
+            if (det.geolocation && det.geolocation.available && det.geolocation.latitude != null && det.geolocation.longitude != null) {
+              allPointsForBounds.push([det.geolocation.latitude, det.geolocation.longitude]);
+
+              // Draw offset line from survey waypoint to anomaly
+              if (parentWpt) {
+                const offsetRay = L.polyline([[parentWpt.latitude, parentWpt.longitude], [det.geolocation.latitude, det.geolocation.longitude]], {
+                  color: '#FFB800',
+                  weight: 2,
+                  dashArray: '4, 4',
+                  opacity: 0.8
+                }).addTo(fleetMap);
+                fleetLayers.push(offsetRay);
+              }
+
+              // Anomaly marker
+              const color = det.priority === 'HIGH' ? '#FF3366' : det.priority === 'MEDIUM' ? '#FFB800' : '#00FF66';
+              const detIcon = L.divIcon({
+                className: 'custom-sonar-marker',
+                html: `
+                  <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                    <div style="
+                      width: 26px; height: 26px; border-radius: 50%; background-color: #0B132B;
+                      border: 2px solid ${color}; display: flex; align-items: center; justify-content: center;
+                      box-shadow: 0 0 10px ${color}; cursor: pointer;
+                    ">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3.5" fill="${color}"></circle>
+                      </svg>
+                    </div>
+                  </div>
+                `,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -14]
+              });
+
+              const detMarker = L.marker([det.geolocation.latitude, det.geolocation.longitude], { icon: detIcon }).addTo(fleetMap);
+              detMarker.bindPopup(`
+                <div class="p-1 font-mono text-xs space-y-1.5 min-w-[200px]">
+                  <div class="border-b border-slate-700/60 pb-1 flex items-center justify-between">
+                    <span class="font-bold text-white text-xs">${det.region_id}</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-medium border ${det.priority === 'HIGH' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}">${det.priority}</span>
+                  </div>
+                  <div class="space-y-0.5 text-slate-300 text-[11px]">
+                    <div><strong class="text-slate-400">Image: </strong><span>${res.filename}</span></div>
+                    <div><strong class="text-slate-400">Position: </strong><span class="text-cyan-300 font-mono">${det.geolocation.latitude.toFixed(6)}°, ${det.geolocation.longitude.toFixed(6)}°</span></div>
+                    <div><strong class="text-slate-400">Confidence: </strong><span>${(det.final_confidence * 100).toFixed(1)}%</span></div>
+                  </div>
+                  ${resIdx >= 0 ? `
+                  <div class="pt-1.5 border-t border-slate-800 text-[10px] text-cyan-400 flex items-center gap-1 cursor-pointer hover:underline" onclick="openDetail(${resIdx})">
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                    <span>Inspect Diagnostic Image</span>
+                  </div>` : ''}
+                </div>
+              `);
+              fleetMapMarkers.push(detMarker);
+            }
+          });
+        }
+      });
+    } else {
+      // Fallback: only georeferenced anomaly targets exist without waypoints
+      countEl.textContent = `${georeferenced.length} Survey Anomaly Target${georeferenced.length === 1 ? '' : 's'}`;
+      if (georeferenced.length > 1) {
+        const coords = georeferenced.map(g => [g.lat, g.lon]);
+        fleetTrackline = L.polyline(coords, {
+          color: '#00F0FF',
+          weight: 3,
+          dashArray: '6, 6',
+          opacity: 0.75
+        }).addTo(fleetMap);
+        fleetLayers.push(fleetTrackline);
+        coords.forEach(c => allPointsForBounds.push(c));
+      }
+      georeferenced.forEach((item) => {
+        allPointsForBounds.push([item.lat, item.lon]);
+        const color = item.det.priority === 'HIGH' ? '#FF3366' : item.det.priority === 'MEDIUM' ? '#FFB800' : '#00FF66';
+        const marker = L.marker([item.lat, item.lon], {
+          icon: createCustomMarkerIcon(item.det.object_class, item.det.priority, false)
+        }).addTo(fleetMap);
+        fleetMapMarkers.push(marker);
+      });
+    }
+
+    // View fitting & map resize
+    setTimeout(() => {
+      fleetMap.invalidateSize();
+      if (allPointsForBounds.length > 1) {
+        const bounds = L.latLngBounds(allPointsForBounds);
+        fleetMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      } else if (allPointsForBounds.length === 1) {
+        fleetMap.setView(allPointsForBounds[0], 16);
+      }
+    }, 150);
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  }
+
+  window.switchModalView = function(view) {
+    const imgEl = document.getElementById('modal-main-img');
+    const fullLink = document.getElementById('modal-img-full');
+    const tabHud = document.getElementById('modal-tab-hud');
+    const tabOrig = document.getElementById('modal-tab-orig');
+    const legend = document.getElementById('modal-legend');
+
+    if (view === 'hud' && window.currentModalDebugUrl) {
+      if (imgEl) imgEl.src = window.currentModalDebugUrl;
+      if (fullLink) fullLink.href = window.currentModalDebugUrl;
+      if (tabHud) tabHud.className = 'px-2.5 py-1 rounded text-[10px] font-semibold transition bg-cyan-600 text-white flex items-center gap-1';
+      if (tabOrig) tabOrig.className = 'px-2.5 py-1 rounded text-[10px] font-semibold transition text-slate-400 hover:text-slate-200 flex items-center gap-1';
+      if (legend) legend.classList.remove('hidden');
+    } else if (view === 'orig' && window.currentModalOrigUrl) {
+      if (imgEl) imgEl.src = window.currentModalOrigUrl;
+      if (fullLink) fullLink.href = window.currentModalOrigUrl;
+      if (tabHud) tabHud.className = 'px-2.5 py-1 rounded text-[10px] font-semibold transition text-slate-400 hover:text-slate-200 flex items-center gap-1';
+      if (tabOrig) tabOrig.className = 'px-2.5 py-1 rounded text-[10px] font-semibold transition bg-cyan-600 text-white flex items-center gap-1';
+      if (legend) legend.classList.add('hidden');
+    }
+  };
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // --- Theme Switcher Logic ---
+  function applyTheme(theme) {
+    const html = document.documentElement;
+    const themeText = document.getElementById('theme-text');
+    if (theme === 'light') {
+      html.classList.remove('dark');
+      html.classList.add('light');
+      if (themeText) themeText.textContent = 'Dark';
+    } else {
+      html.classList.remove('light');
+      html.classList.add('dark');
+      if (themeText) themeText.textContent = 'Light';
+    }
+    localStorage.setItem('ghostnet_theme', theme);
+    if (fleetTileLayer) {
+      fleetTileLayer.setUrl(theme === 'light'
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+
+  function toggleTheme() {
+    const current = localStorage.getItem('ghostnet_theme') || 'dark';
+    const target = current === 'dark' ? 'light' : 'dark';
+    applyTheme(target);
+  }
+
+  // Initialize Theme immediately
+  (function initBatchTheme() {
+    const saved = localStorage.getItem('ghostnet_theme') || 'dark';
+    applyTheme(saved);
+  })();
+
+  </script>
+</body>
+</html>

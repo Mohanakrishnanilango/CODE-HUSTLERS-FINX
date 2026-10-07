@@ -1,0 +1,14 @@
+{
+  "image": "ping_0005.png",
+  "timestamp": "2026-09-23T09:30:05Z",
+  "latitude": 9.951000,
+  "longitude": 76.126100,
+  "heading": 82.0,
+  "altitude": 18.6,
+  "sonar_range": 50.0,
+  "resolution": 0.1,
+  "swath_channel": "starboard",
+  "target_class": "mine_cylinder",
+  "confidence": 0.73,
+  "notes": "Cylindrical metallic target"
+}
